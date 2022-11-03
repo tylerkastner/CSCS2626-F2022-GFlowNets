@@ -146,7 +146,7 @@ for it in tqdm.trange(62501):
 
     zs.append(Z.item())
 
-    if it % 100 == 0:
+    if it % 1000 == 0:
         print('loss =', np.array(losses[-100:]).mean(), 'Z =', Z.item())
         emp_dist = np.bincount(all_visited[-200000:], minlength=len(true_dist)).astype(float)
         emp_dist /= emp_dist.sum()
@@ -154,5 +154,7 @@ for it in tqdm.trange(62501):
         print('L1 =', l1)
         l1log.append((len(all_visited), l1))
         emp_dist =emp_dist.reshape(horizon, horizon)
+        plt.imshow(emp_dist)
+        plt.show()
 
 pickle.dump([losses, zs, all_visited, first_visit, l1log], open(f'out.pkl', 'wb'))
