@@ -14,6 +14,7 @@ from tqdm import tqdm
 import torch
 import torch.nn as nn
 from torch.distributions.categorical import Categorical
+import matplotlib.pyplot as plt
 
 
 parser = argparse.ArgumentParser()
@@ -41,14 +42,15 @@ parser.add_argument('--func', default='corners')
 parser.add_argument("--horizon", default=8, type=int)
 parser.add_argument("--ndim", default=2, type=int)
 
+# MCMC
+parser.add_argument("--bufsize", default=16, help="MCMC buffer size", type=int)
+
 # Flownet
 parser.add_argument("--bootstrap_tau", default=0., type=float)
 parser.add_argument("--replay_strategy", default='none', type=str) # top_k none
 parser.add_argument("--replay_sample_size", default=2, type=int)
 parser.add_argument("--replay_buf_size", default=100, type=float)
 
-# PPO
-parser.add_argument("--ppo_entropy_coef", default=1e-1, type=float)
 parser.add_argument("--clip_grad_norm", default=0., type=float)
 
 
@@ -159,73 +161,67 @@ class GridEnv:
         if self._true_density is not None:
             return self._true_density
         all_int_states = np.int32(list(itertools.product(*[list(range(self.horizon))]*self.ndim)))
-        state_mask = np.array([len(self.parent_transitions(s, False)[0]) > 0 or sum(s) == 0
-                               for s in all_int_states])
-        all_xs = (np.float32(all_int_states) / (self.horizon-1) *
-                  (self.xspace[-1] - self.xspace[0]) + self.xspace[0])
+        state_mask = np.array([len(self.parent_transitions(s, False)[0]) > 0 or sum(s) == 0 for s in all_int_states])
+        all_xs = (np.float32(all_int_states) / (self.horizon-1) * (self.xspace[-1] - self.xspace[0]) + self.xspace[0])
         traj_rewards = self.func(all_xs)[state_mask]
-        self._true_density = (traj_rewards / traj_rewards.sum(),
-                              list(map(tuple,all_int_states[state_mask])),
-                              traj_rewards)
+        self._true_density = (traj_rewards / traj_rewards.sum(), list(map(tuple,all_int_states[state_mask])), traj_rewards)
+
+        plt.matshow(self.func(all_xs).reshape(self.horizon, self.horizon).T)
+        plt.show()
+
         return self._true_density
 
-    def all_possible_states(self):
-        """Compute quantities for debugging and analysis"""
-        # all possible action sequences
-        def step_fast(a, s):
-            s = s + 0
-            s[a] += 1
-            return s
-        f = lambda a, s: (
-            [np.int32(a)] if np.max(s) == self.horizon - 1 else
-            [np.int32(a+[self.ndim])]+sum([f(a+[i], step_fast(i, s)) for i in range(self.ndim)], []))
-        all_act_seqs = f([], np.zeros(self.ndim, dtype='int32'))
-        # all RL states / intermediary nodes
-        all_int_states = list(itertools.product(*[list(range(self.horizon))]*self.ndim))
-        # Now we need to know for each partial action sequence what
-        # the corresponding states are. Here we can just count how
-        # many times we moved in each dimension:
-        all_traj_states = np.int32([np.bincount(i[:j], minlength=self.ndim+1)[:-1]
-                                   for i in all_act_seqs
-                                   for j in range(len(i))])
-        # all_int_states is ordered, so we can map a trajectory to its
-        # index via a sum
-        arr_mult = np.int32([self.horizon**(self.ndim-i-1)
-                             for i in range(self.ndim)])
-        all_traj_states_idx = (
-            all_traj_states * arr_mult[None, :]
-        ).sum(1)
-        # For each partial trajectory, we want the index of which trajectory it belongs to
-        all_traj_idxs = [[j]*len(i) for j,i in enumerate(all_act_seqs)]
-        # For each partial trajectory, we want the index of which state it leads to
-        all_traj_s_idxs = [(np.bincount(i, minlength=self.ndim+1)[:-1] * arr_mult).sum()
-                           for i in all_act_seqs]
-        # Vectorized
-        a = torch.cat(list(map(torch.LongTensor, all_act_seqs)))
-        u = torch.LongTensor(all_traj_states_idx)
-        v1 = torch.cat(list(map(torch.LongTensor, all_traj_idxs)))
-        v2 = torch.LongTensor(all_traj_s_idxs)
-        # With all this we can do an index_add, given
-        # pi(all_int_states):
-        def compute_all_probs(policy_for_all_states):
-            """computes p(x) given pi(a|s) for all s"""
-            dev = policy_for_all_states.device
-            pi_a_s = torch.log(policy_for_all_states[u, a])
-            q = torch.exp(torch.zeros(len(all_act_seqs), device=dev)
-                                      .index_add_(0, v1, pi_a_s))
-            q_sum = (torch.zeros((all_xs.shape[0],), device=dev)
-                     .index_add_(0, v2, q))
-            return q_sum[state_mask]
-        # some states aren't actually reachable
-        state_mask = np.bincount(all_traj_s_idxs, minlength=len(all_int_states)) > 0
-        # Let's compute the reward as well
-        all_xs = (np.float32(all_int_states) / (self.horizon-1) *
-                  (self.xspace[-1] - self.xspace[0]) + self.xspace[0])
-        traj_rewards = self.func(all_xs)[state_mask]
-        # All the states as the agent sees them:
-        all_int_obs = np.float32([self.obs(i) for i in all_int_states])
-        print(all_int_obs.shape, a.shape, u.shape, v1.shape, v2.shape)
-        return all_int_obs, traj_rewards, all_xs, compute_all_probs
+    # def all_possible_states(self):
+    #     """Compute quantities for debugging and analysis"""
+    #     # all possible action sequences
+    #     def step_fast(a, s):
+    #         s = s + 0
+    #         s[a] += 1
+    #         return s
+    #     f = lambda a, s: (
+    #         [np.int32(a)] if np.max(s) == self.horizon - 1 else
+    #         [np.int32(a+[self.ndim])]+sum([f(a+[i], step_fast(i, s)) for i in range(self.ndim)], []))
+    #     all_act_seqs = f([], np.zeros(self.ndim, dtype='int32'))
+    #     # all RL states / intermediary nodes
+    #     all_int_states = list(itertools.product(*[list(range(self.horizon))]*self.ndim))
+    #     # Now we need to know for each partial action sequence what
+    #     # the corresponding states are. Here we can just count how
+    #     # many times we moved in each dimension:
+    #     all_traj_states = np.int32([np.bincount(i[:j], minlength=self.ndim+1)[:-1]
+    #                                for i in all_act_seqs
+    #                                for j in range(len(i))])
+    #     # all_int_states is ordered, so we can map a trajectory to its
+    #     # index via a sum
+    #     arr_mult = np.int32([self.horizon**(self.ndim-i-1)
+    #                          for i in range(self.ndim)])
+    #     all_traj_states_idx = (all_traj_states * arr_mult[None, :]).sum(1)
+    #     # For each partial trajectory, we want the index of which trajectory it belongs to
+    #     all_traj_idxs = [[j]*len(i) for j,i in enumerate(all_act_seqs)]
+    #     # For each partial trajectory, we want the index of which state it leads to
+    #     all_traj_s_idxs = [(np.bincount(i, minlength=self.ndim+1)[:-1] * arr_mult).sum() for i in all_act_seqs]
+    #     # Vectorized
+    #     a = torch.cat(list(map(torch.LongTensor, all_act_seqs)))
+    #     u = torch.LongTensor(all_traj_states_idx)
+    #     v1 = torch.cat(list(map(torch.LongTensor, all_traj_idxs)))
+    #     v2 = torch.LongTensor(all_traj_s_idxs)
+    #     # With all this we can do an index_add, given
+    #     # pi(all_int_states):
+    #     def compute_all_probs(policy_for_all_states):
+    #         """computes p(x) given pi(a|s) for all s"""
+    #         dev = policy_for_all_states.device
+    #         pi_a_s = torch.log(policy_for_all_states[u, a])
+    #         q = torch.exp(torch.zeros(len(all_act_seqs), device=dev).index_add_(0, v1, pi_a_s))
+    #         q_sum = (torch.zeros((all_xs.shape[0],), device=dev).index_add_(0, v2, q))
+    #         return q_sum[state_mask]
+    #     # some states aren't actually reachable
+    #     state_mask = np.bincount(all_traj_s_idxs, minlength=len(all_int_states)) > 0
+    #     # Let's compute the reward as well
+    #     all_xs = (np.float32(all_int_states) / (self.horizon-1) * (self.xspace[-1] - self.xspace[0]) + self.xspace[0])
+    #     traj_rewards = self.func(all_xs)[state_mask]
+    #     # All the states as the agent sees them:
+    #     all_int_obs = np.float32([self.obs(i) for i in all_int_states])
+    #     print(all_int_obs.shape, a.shape, u.shape, v1.shape, v2.shape)
+    #     return all_int_obs, traj_rewards, all_xs, compute_all_probs
 
 def make_mlp(l, act=nn.LeakyReLU(), tail=[]):
     """makes an MLP with no top layer activation"""
@@ -299,6 +295,7 @@ class FlowNetAgent:
         batch += self.replay.sample()
         s = tf([i.reset()[0] for i in self.envs])
         done = [False] * mbsize
+
         while not all(done):
             # Note to self: this is ugly, ugly code
             with torch.no_grad():
@@ -368,44 +365,12 @@ class SplitCategorical:
         return Categorical(probs=torch.cat([self.cats[0].probs, self.cats[1].probs],-1) * 0.5).entropy()
 
 
-
-
-class RandomTrajAgent:
-    def __init__(self, args, envs):
-        self.mbsize = args.mbsize
-        self.envs = envs
-        self.nact = args.ndim + 1
-        self.model = None
-
-    def parameters(self):
-        return []
-
-    def sample_many(self, mbsize, all_visited):
-        batch = []
-        [i.reset()[0] for i in self.envs]
-        done = [False] * mbsize
-        trajs = defaultdict(list)
-        while not all(done):
-            acts = np.random.randint(0, self.nact, mbsize)
-            step = [i.step(a) for i,a in zip([e for d, e in zip(done, self.envs) if not d], acts)]
-            c = count(0)
-            m = {j:next(c) for j in range(mbsize) if not done[j]}
-            done = [bool(d or step[m[i]][2]) for i, d in enumerate(done)]
-            for (_, r, d, sp) in step:
-                if d: all_visited.append(tuple(sp))
-        return []
-
-    def learn_from(self, it, batch):
-        return None
-
-
 def make_opt(params, args):
     params = list(params)
     if not len(params):
         return None
     if args.opt == 'adam':
-        opt = torch.optim.Adam(params, args.learning_rate,
-                               betas=(args.adam_beta1, args.adam_beta2))
+        opt = torch.optim.Adam(params, args.learning_rate, betas=(args.adam_beta1, args.adam_beta2))
     elif args.opt == 'msgd':
         opt = torch.optim.SGD(params, args.learning_rate, momentum=args.momentum)
     return opt
@@ -436,17 +401,13 @@ def main(args):
          'corners_floor_B': func_corners_floor_B,
     }[args.func]
 
-    args.is_mcmc = args.method in ['mars', 'mcmc']
-
-    env = GridEnv(args.horizon, args.ndim, func=f, allow_backward=args.is_mcmc)
-    envs = [GridEnv(args.horizon, args.ndim, func=f, allow_backward=args.is_mcmc)
+    env = GridEnv(args.horizon, args.ndim, func=f, allow_backward=False)
+    envs = [GridEnv(args.horizon, args.ndim, func=f, allow_backward=False)
             for i in range(args.bufsize)]
     ndim = args.ndim
 
     if args.method == 'flownet':
         agent = FlowNetAgent(args, envs)
-    elif args.method == 'random_traj':
-        agent = RandomTrajAgent(args, envs)
 
     opt = make_opt(agent.parameters(), args)
 
@@ -459,7 +420,7 @@ def main(args):
     sttr = max(int(1/args.train_to_sample_ratio), 1) # sample to train ratio
 
 
-    for i in tqdm(range(args.n_train_steps+1), disable=not args.progress):
+    for i in tqdm(range(args.n_train_steps+1)):
         data = []
         for j in range(sttr):
             data += agent.sample_many(args.mbsize, all_visited)
@@ -493,7 +454,7 @@ def main(args):
          'visited': np.int8(all_visited),
          'emp_dist_loss': empirical_distrib_losses,
          'true_d': env.true_density()[0],
-         'args':args},
+         'args': args},
         gzip.open(args.save_path, 'wb'))
 
 if __name__ == '__main__':
