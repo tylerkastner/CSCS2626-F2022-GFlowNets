@@ -1,6 +1,6 @@
 env:
   name: Grid
-  ndim: 3
+  ndim: 2
   height: 16
   nactions: 3
 
