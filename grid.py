@@ -3,6 +3,7 @@ import torch
 import tqdm
 import yaml
 import munch
+from utils import render_distribution
 from gfn.envs import HyperGrid
 from gfn.estimators import LogitPFEstimator, LogitPBEstimator, LogZEstimator
 from gfn.losses import TBParametrization, TrajectoryBalance
@@ -16,7 +17,9 @@ with open("config.yml", "r") as ymlfile:
 config = munch.munchify(config)
 
 env = HyperGrid(ndim=config.env.ndim, height=config.env.height, R0=0.01)  # Grid of size 8x8x8x8
-env.render_gt()
+all_states = env.build_grid()
+all_rewards = env.reward(all_states)
+render_distribution(all_rewards, config.env.height, config.env.ndim, 'true_reward_{}d'.format(config.env.ndim))
 
 logit_PF = LogitPFEstimator(env=env, module_name='NeuralNet')
 logit_PB = LogitPBEstimator(env=env, module_name='NeuralNet', torso=logit_PF.module.torso)  # To share parameters between PF and PB
@@ -71,6 +74,4 @@ for i in tqdm.trange(1000):
         to_log.update(validation_info)
         tqdm.tqdm.write(f"Iteration: {i}: {to_log}")
 
-        if env.ndim == 2:
-            plt.matshow(final_states_dist_pmf.reshape(config.env.height, config.env.height))
-            plt.show()
+        render_distribution(final_states_dist_pmf.reshape([config.env.height]*config.env.ndim) * torch.exp(parametrization.logZ.tensor.detach()), config.env.height, config.env.ndim, 'emp_reward_{}d_{}it'.format(config.env.ndim, i))
