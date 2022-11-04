@@ -1,0 +1,13 @@
+env:
+  name: Grid
+  ndim: 2
+  height: 8
+  nactions: 3
+
+experiment:
+  batch_size: 32
+  use_replay_buffer: False
+  replay_buffer_size: 1000
+  validation_interval: 100
+  resample_for_validation: True
+  n_validation_samples: 1000
