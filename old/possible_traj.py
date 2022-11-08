@@ -1,5 +1,6 @@
 import copy
 import numpy as np
+import random
 
 class Get_Traj():
     def __init__(self, env, end_pt=None, reward=None, method='reward'):
@@ -50,3 +51,32 @@ class Get_Traj():
         curr_state[idx], curr_state[idx-1] = 0.0, 1.0
         s[idx//self.horizon] = idx - 1
         return [(curr_state, action, (np.mod(s, self.horizon)).tolist(), False)] + traj
+
+def generate_trajs(env, n=10000):
+    horizon = env.horizon
+    ndim = env.ndim
+    __, _, trajectory_reward  = env.true_density()
+
+    trajectory_reward = np.append(trajectory_reward,trajectory_reward[-1])
+
+    dataset = np.zeros([n, horizon*ndim + 2 + horizon*ndim]) # state + action + reward + next_state
+    action = [i for i in range(ndim+1)]
+    for i in range(n):
+        state = [random.randint(0,horizon-1) for _ in range(ndim)]
+        a = copy.deepcopy(action)
+        for idx,j in zip([*range(ndim)][::-1], state[::-1]):
+            if j == horizon-1:
+                a.pop(idx)
+        a = random.choice(a)
+        for j in range(ndim):
+            dataset[i][state[j]+horizon*j] = 1.0
+        dataset[i][horizon*ndim] = a
+        if a == ndim:
+            dataset[i][horizon*ndim+1] = trajectory_reward[sum([j*(horizon**idx) for idx,j in zip(range(ndim),state)])]
+            dataset[i][horizon*ndim+2:] = dataset[i][:horizon*ndim]
+        else:
+            state[a] = state[a]+1
+            for j in range(ndim):
+                dataset[i][horizon*ndim + 2+state[j]+horizon*j] = 1.0
+        
+    np.savetxt("old/samples_trajs.csv", dataset, delimiter=",")
