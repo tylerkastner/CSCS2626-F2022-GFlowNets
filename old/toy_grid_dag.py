@@ -16,7 +16,7 @@ import torch.nn as nn
 from torch.distributions.categorical import Categorical
 import matplotlib.pyplot as plt
 
-from possible_traj import Get_Traj
+from possible_traj import Get_Traj, generate_trajs
 
 parser = argparse.ArgumentParser()
 
@@ -55,11 +55,13 @@ parser.add_argument("--replay_buf_size", default=100, type=float)
 parser.add_argument("--clip_grad_norm", default=0., type=float)
 
 # Acquire agent trajectories
-parser.add_argument("--possible_traj",default=True, type=bool,
+parser.add_argument("--possible_traj",default=False, type=bool,
                     help="Whether get the possible trajectories that sample sepecific reward")
 parser.add_argument("--end_pt",default=18, type=int,
                     help="like 45 means the index of point (6,6) in (8,8) matrix")
 parser.add_argument("--target_reward",default=2.6, type=float)
+
+parser.add_argument("--generate_traj",default=True, type=bool)
 
 
 _dev = [torch.device('cpu')]
@@ -412,6 +414,10 @@ def main(args):
     if args.possible_traj:
         get_traj = Get_Traj(env, args.end_pt, args.target_reward)
         traj = get_traj.find_trajectories()
+        return
+    
+    if args.generate_traj:
+        generate_trajs(env)
         return
 
     envs = [GridEnv(args.horizon, args.ndim, func=f, allow_backward=False)
