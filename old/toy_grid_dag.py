@@ -16,7 +16,8 @@ import torch.nn as nn
 from torch.distributions.categorical import Categorical
 import matplotlib.pyplot as plt
 
-from possible_traj import Get_Traj, generate_trajs
+# TK: This was giving me ModuleNotFoundErrors
+# from possible_traj import Get_Traj, generate_trajs
 
 parser = argparse.ArgumentParser()
 
@@ -103,6 +104,7 @@ class GridEnv:
                                               # MCMC ergodic env,
                                               # otherwise a DAG
         self._true_density = None
+        self.observation_shape = self.horizon * self.ndim
 
     def obs(self, s=None):
         s = np.int32(self._state if s is None else s)
