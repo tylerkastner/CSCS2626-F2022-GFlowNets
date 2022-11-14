@@ -17,6 +17,8 @@ from torch.distributions.categorical import Categorical
 import matplotlib.pyplot as plt
 
 # TK: This was giving me ModuleNotFoundErrors
+# CZ: possible_traj.py is under the same folder with this file, it should not be needed to
+# specify its absolute path. It works on my end.
 # from possible_traj import Get_Traj, generate_trajs
 
 parser = argparse.ArgumentParser()
