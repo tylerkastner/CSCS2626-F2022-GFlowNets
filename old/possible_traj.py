@@ -1,9 +1,10 @@
+import re
 import copy
 import numpy as np
 import random
 
 class Get_Traj():
-    def __init__(self, env, end_pt=45, reward=None, method='end_pt'):
+    def __init__(self, env, end_pt=45, reward=None, method='end_point'):
         self.env = env
         self.horizon = self.env.horizon
         self.ndim = self.env.ndim
@@ -26,7 +27,7 @@ class Get_Traj():
             pt_index = [i//self.horizon, i%self.horizon]
 
             # initialize end_state 
-            z = np.zeros([self.horizon * self.ndim], dtype=np.float32)
+            z = np.zeros([self.horizon * self.ndim], dtype=np.int8)
             for j in range(self.ndim):
                 z[j*self.horizon+pt_index[j]] = 1.0
 
@@ -46,7 +47,7 @@ class Get_Traj():
                 trajectories = copy.deepcopy(traj2)
 
             p_trajectories.update({i:trajectories})
-            
+
         return p_trajectories
 
     def get_prev_traj(self, traj:list[tuple[list,int]], action):
@@ -60,45 +61,53 @@ class Get_Traj():
         return [(curr_state, action, (np.mod(s, self.horizon)).tolist(), False)] + traj
 
 def generate_trajs(env, n=10000):
-    horizon = env.horizon # 8
-    ndim = env.ndim # 2
-    # We get the ground trush reward from true density
-    __, _, trajectory_reward  = env.true_density()
+    trajs = []
+    with open('old/complete_trajs.csv','r') as f:
+        for row in f:
+            trajs.append([int(s) for s in re.findall(r'\b\d+\b', row)])
 
-    # For len(trajectory)==horizon**ndim-1, missing last reward, We manually set the value of last 
-    # reward equal to its previous reward
-    trajectory_reward = np.append(trajectory_reward,trajectory_reward[-1])
+    sample_trajs = random.sample(trajs, n)
+    np.savetxt("old/sample_trajs.csv", np.asanyarray(sample_trajs,dtype=object),delimiter=",",fmt='%s')
 
-    # Based on the toy_grid_dag.py that represent its state in one hot encoding, we keep using that
-    # way. Eg. [0,1,0,0,0,0,0,0,0,0,1,0,0,0,0,0] 2nd and 11th are positive, standing for current 
-    # state[2,3] = state[2,11-horizon]
-    # We initialized a dataset in shape (n, state + action + reward + next_state) where state shape
-    # is (16,), action (1,), reward (1,)
-    dataset = np.zeros([n, horizon*ndim + 2 + horizon*ndim]) 
+    # horizon = env.horizon # 8
+    # ndim = env.ndim # 2
+    # # We get the ground trush reward from true density
+    # __, _, trajectory_reward  = env.true_density()
 
-    # Possible action is 0,1,2 if ndim == 2. 0 stands for moving in first dimension, [2,3] to [3,3], 
-    # 1 stands for moving in second dimension [2,3] to [2,4] and 2 stands for termination.
-    action = [i for i in range(ndim+1)]
+    # # For len(trajectory)==horizon**ndim-1, missing last reward, We manually set the value of last 
+    # # reward equal to its previous reward
+    # trajectory_reward = np.append(trajectory_reward,trajectory_reward[-1])
 
-    # creating trajectory loop, randomly generating state and action, finding its reward and 
-    # calculating its next_state
-    for i in range(n):
-        state = [random.randint(0,horizon-1) for _ in range(ndim)]
-        a = copy.deepcopy(action)
-        for idx,j in zip([*range(ndim)][::-1], state[::-1]):
-            if j == horizon-1:
-                a.pop(idx)
-        a = random.choice(a)
-        for j in range(ndim):
-            dataset[i][state[j]+horizon*j] = 1.0
-        dataset[i][horizon*ndim] = a
-        if a == ndim:
-            dataset[i][horizon*ndim+1] = trajectory_reward[sum([j*(horizon**idx) for idx,j in zip(range(ndim),state)])]
-            dataset[i][horizon*ndim+2:] = dataset[i][:horizon*ndim]
-        else:
-            state[a] = state[a]+1
-            for j in range(ndim):
-                dataset[i][horizon*ndim + 2+state[j]+horizon*j] = 1.0
+    # # Based on the toy_grid_dag.py that represent its state in one hot encoding, we keep using that
+    # # way. Eg. [0,1,0,0,0,0,0,0,0,0,1,0,0,0,0,0] 2nd and 11th are positive, standing for current 
+    # # state[2,3] = state[2,11-horizon]
+    # # We initialized a dataset in shape (n, state + action + reward + next_state) where state shape
+    # # is (16,), action (1,), reward (1,)
+    # dataset = np.zeros([n, horizon*ndim + 2 + horizon*ndim]) 
 
-    # save generated result into a csv file 
-    np.savetxt("old/samples_trajs.csv", dataset, delimiter=",")
+    # # Possible action is 0,1,2 if ndim == 2. 0 stands for moving in first dimension, [2,3] to [3,3], 
+    # # 1 stands for moving in second dimension [2,3] to [2,4] and 2 stands for termination.
+    # action = [i for i in range(ndim+1)]
+
+    # # creating trajectory loop, randomly generating state and action, finding its reward and 
+    # # calculating its next_state
+    # for i in range(n):
+    #     state = [random.randint(0,horizon-1) for _ in range(ndim)]
+    #     a = copy.deepcopy(action)
+    #     for idx,j in zip([*range(ndim)][::-1], state[::-1]):
+    #         if j == horizon-1:
+    #             a.pop(idx)
+    #     a = random.choice(a)
+    #     for j in range(ndim):
+    #         dataset[i][state[j]+horizon*j] = 1.0
+    #     dataset[i][horizon*ndim] = a
+    #     if a == ndim:
+    #         dataset[i][horizon*ndim+1] = trajectory_reward[sum([j*(horizon**idx) for idx,j in zip(range(ndim),state)])]
+    #         dataset[i][horizon*ndim+2:] = dataset[i][:horizon*ndim]
+    #     else:
+    #         state[a] = state[a]+1
+    #         for j in range(ndim):
+    #             dataset[i][horizon*ndim + 2+state[j]+horizon*j] = 1.0
+
+    # # save generated result into a csv file 
+    # np.savetxt("old/samples_trajs.csv", dataset, delimiter=",")

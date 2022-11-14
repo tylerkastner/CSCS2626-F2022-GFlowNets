@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 # TK: This was giving me ModuleNotFoundErrors
 # CZ: possible_traj.py is under the same folder with this file, it should not be needed to
 # specify its absolute path. It works on my end.
-# from possible_traj import Get_Traj, generate_trajs
+from possible_traj import Get_Traj, generate_trajs
 
 parser = argparse.ArgumentParser()
 
@@ -416,12 +416,22 @@ def main(args):
 
     env = GridEnv(args.horizon, args.ndim, func=f, allow_backward=False)
     if args.possible_traj:
-        get_traj = Get_Traj(env, args.end_pt, args.target_reward)
-        traj = get_traj.find_trajectories()
+        traj = {}
+        s_a = []
+        for i in range(args.horizon**args.ndim):
+            get_traj = Get_Traj(env, i, args.target_reward)
+            traj.update(get_traj.find_trajectories())
+            for j in range(len(traj[i])):
+                temp = []
+                for k in range(len(traj[i][j])):
+                    temp.extend((np.where(traj[i][j][k][0]==1)[0]%8).tolist())
+                    temp.append(traj[i][j][k][1])
+                s_a.append(temp)
+        np.savetxt("old/complete_trajs.csv", np.asanyarray(s_a,dtype=object),delimiter=",",fmt='%s')
         return
     
     if args.generate_traj:
-        generate_trajs(env)
+        generate_trajs()
         return
 
     envs = [GridEnv(args.horizon, args.ndim, func=f, allow_backward=False)
