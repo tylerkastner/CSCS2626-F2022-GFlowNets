@@ -1,22 +1,21 @@
 import re
 import copy
-import yaml
-import munch
 import numpy as np
 import random
 import matplotlib.pyplot as plt
 
-from gfn.envs import HyperGrid
+from toy_grid_dag import GridEnv, func_corners, func_corners_floor_B,\
+    func_corners_floor_A, func_cos_N
 
 class Get_Traj():
     def __init__(self, env):
         self.env = env
-        self.horizon = self.env.height
+        self.horizon = self.env.horizon
         self.ndim = self.env.ndim
         self._state = np.int32([0] * self.ndim)
 
-        # _, _, self.traj_rewards  = self.env.true_density()
-        # self.traj_rewards = np.append(self.traj_rewards,self.traj_rewards[-1])     
+        _, _, self.traj_rewards  = self.env.true_density()
+        self.traj_rewards = np.append(self.traj_rewards,self.traj_rewards[-1])     
     
     def find_trajectories(self, end_pt):
         # Find its index of point, like 45 means the index of point (6,6) in (8,8) matrix
@@ -58,16 +57,15 @@ class Get_Traj():
         return [(curr_state, action, (np.mod(s, self.horizon)).tolist(), False)] + traj
 
 def generate_trajs(env, n=10000, K=1):
-    all_states = env.build_grid()
-    all_rewards = env.reward(all_states)
-    all_rewards_vec = all_rewards.reshape(1,env.height**env.ndim)[0]
     get_traj = Get_Traj(env)
+    _, _, traj_rewards  = env.true_density()
+    traj_rewards = np.append(traj_rewards,traj_rewards[-1])
 
-    p = np.exp(all_rewards_vec*K)/np.exp(all_rewards_vec*K).sum()
-    end_points = np.random.choice(env.height**env.ndim, n, p=p.detach().cpu().numpy())
+    p=np.exp(traj_rewards*K)/np.exp(traj_rewards*K).sum()
+    end_points = np.random.choice(env.horizon**env.ndim, n, p=p)
 
-    plt.matshow(np.array([np.sum(end_points==i) for i in range(env.height**env.ndim)]).\
-                reshape(env.height, env.height).T)
+    plt.matshow(np.array([np.sum(end_points==i) for i in range(env.horizon**env.ndim)]).\
+                reshape(env.horizon, env.horizon).T)
     plt.show()
 
     sample_trajs = []
@@ -79,13 +77,9 @@ def generate_trajs(env, n=10000, K=1):
     np.savetxt("sample_trajs.csv", np.asanyarray(sample_trajs,dtype=object),delimiter=",",fmt='%s')
 
 if __name__ == '__main__':
-
-    with open("config.yml", "r") as ymlfile:
-        config = yaml.safe_load(ymlfile)
-    config = munch.munchify(config)
-
-    env = HyperGrid(ndim=config.env.ndim,
-                    height=config.env.height,
-                    R0=0.01)
-
+    env = GridEnv(horizon=8,
+                  ndim=2,
+                  xrange=[-1,1],
+                  func=func_corners,
+                  allow_backward=False)
     generate_trajs(env=env)
