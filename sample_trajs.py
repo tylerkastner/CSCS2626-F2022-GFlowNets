@@ -42,7 +42,7 @@ class Get_Traj():
 
         s_a = []
         for i in range(len(trajectory)):
-            s_a.extend((np.where(trajectory[i][0]==1)[0]%8).tolist())
+            s_a.extend((np.where(trajectory[i][0]==1)[0]%self.horizon).tolist())
             s_a.append(trajectory[i][1])
 
         return s_a
