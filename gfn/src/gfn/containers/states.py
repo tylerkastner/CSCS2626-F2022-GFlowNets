@@ -7,7 +7,7 @@ from typing import ClassVar, Sequence, cast
 import torch
 from torchtyping import TensorType
 
-from gfn.containers.base import Container
+from gfn.src.gfn.containers.base import Container
 
 # Typing
 ForwardMasksTensor = TensorType["batch_shape", "n_actions", torch.bool]

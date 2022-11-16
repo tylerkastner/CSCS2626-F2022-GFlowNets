@@ -9,11 +9,11 @@ import torch
 from configs import EnvConfig
 from simple_parsing import ArgumentParser
 
-from gfn.containers.states import correct_cast
-from gfn.estimators import LogEdgeFlowEstimator
-from gfn.losses import FMParametrization
-from gfn.modules import Tabular, Uniform
-from gfn.utils import validate
+from gfn.src.gfn.containers.states import correct_cast
+from gfn.src.gfn.estimators import LogEdgeFlowEstimator
+from gfn.src.gfn.losses import FMParametrization
+from gfn.src.gfn.modules import Tabular, Uniform
+from gfn.src.gfn.utils import validate
 
 parser = ArgumentParser()
 

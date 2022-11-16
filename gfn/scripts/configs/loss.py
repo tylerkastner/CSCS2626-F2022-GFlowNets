@@ -6,15 +6,15 @@ import torch
 from simple_parsing import choice, subgroups
 from simple_parsing.helpers import JsonSerializable
 
-from gfn.envs import Env
-from gfn.estimators import (
+from gfn.src.gfn.envs import Env
+from gfn.src.gfn.estimators import (
     LogEdgeFlowEstimator,
     LogitPBEstimator,
     LogitPFEstimator,
     LogStateFlowEstimator,
     LogZEstimator,
 )
-from gfn.losses import (
+from gfn.src.gfn.losses import (
     DBParametrization,
     DetailedBalance,
     FlowMatching,

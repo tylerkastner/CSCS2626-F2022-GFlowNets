@@ -4,10 +4,10 @@ from typing import List, Literal, Tuple
 import torch
 from torchtyping import TensorType
 
-from gfn.containers import Trajectories
-from gfn.estimators import LogStateFlowEstimator
-from gfn.losses.base import PFBasedParametrization, TrajectoryDecomposableLoss
-from gfn.samplers.actions_samplers import (
+from gfn.src.gfn.containers import Trajectories
+from gfn.src.gfn.estimators import LogStateFlowEstimator
+from gfn.src.gfn.losses.base import PFBasedParametrization, TrajectoryDecomposableLoss
+from gfn.src.gfn.samplers.actions_samplers import (
     BackwardDiscreteActionsSampler,
     DiscreteActionsSampler,
 )

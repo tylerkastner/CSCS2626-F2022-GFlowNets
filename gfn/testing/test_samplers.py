@@ -3,12 +3,12 @@ from typing import Literal
 import pytest
 import torch
 
-from gfn.containers import Trajectories
-from gfn.containers.replay_buffer import ReplayBuffer
-from gfn.envs import HyperGrid, DiscreteEBMEnv
-from gfn.estimators import LogitPBEstimator, LogitPFEstimator
-from gfn.samplers import TrajectoriesSampler
-from gfn.samplers.actions_samplers import (
+from gfn.src.gfn.containers import Trajectories
+from gfn.src.gfn.containers.replay_buffer import ReplayBuffer
+from gfn.src.gfn.envs import HyperGrid, DiscreteEBMEnv
+from gfn.src.gfn.estimators import LogitPBEstimator, LogitPFEstimator
+from gfn.src.gfn.samplers import TrajectoriesSampler
+from gfn.src.gfn.samplers.actions_samplers import (
     BackwardDiscreteActionsSampler,
     DiscreteActionsSampler,
 )

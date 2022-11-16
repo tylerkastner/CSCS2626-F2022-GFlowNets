@@ -3,10 +3,10 @@ from typing import Literal, Optional
 
 from torchtyping import TensorType
 
-from gfn.containers import States
-from gfn.envs import Env
-from gfn.envs.preprocessors.base import EnumPreprocessor
-from gfn.modules import GFNModule, NeuralNet, Tabular, Uniform, ZeroGFNModule
+from gfn.src.gfn.containers import States
+from gfn.src.gfn.envs import Env
+from gfn.src.gfn.envs.preprocessors.base import EnumPreprocessor
+from gfn.src.gfn.modules import GFNModule, NeuralNet, Tabular, Uniform, ZeroGFNModule
 
 # Typing
 OutputTensor = TensorType["batch_shape", "output_dim", float]

@@ -6,10 +6,10 @@ import torch
 from torchtyping import TensorType
 
 if TYPE_CHECKING:
-    from gfn.envs import Env
-    from gfn.containers.states import States
+    from gfn.src.gfn.envs import Env
+    from gfn.src.gfn.containers.states import States
 
-from gfn.containers.base import Container
+from gfn.src.gfn.containers.base import Container
 
 # Typing  -- n_transitions is either int or Tuple[int]
 LongTensor = TensorType["n_transitions", torch.long]

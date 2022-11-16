@@ -1,20 +1,20 @@
 import pytest
 import torch
 
-from gfn.envs import HyperGrid, DiscreteEBMEnv
-from gfn.estimators import (
+from gfn.src.gfn.envs import HyperGrid, DiscreteEBMEnv
+from gfn.src.gfn.estimators import (
     LogEdgeFlowEstimator,
     LogitPBEstimator,
     LogitPFEstimator,
     LogStateFlowEstimator,
     LogZEstimator,
 )
-from gfn.losses.detailed_balance import DBParametrization, DetailedBalance
-from gfn.losses.flow_matching import FlowMatching, FMParametrization
-from gfn.losses.sub_trajectory_balance import SubTBParametrization, SubTrajectoryBalance
-from gfn.losses.trajectory_balance import TBParametrization, TrajectoryBalance
-from gfn.samplers.actions_samplers import DiscreteActionsSampler
-from gfn.samplers.trajectories_sampler import TrajectoriesSampler
+from gfn.src.gfn.losses.detailed_balance import DBParametrization, DetailedBalance
+from gfn.src.gfn.losses.flow_matching import FlowMatching, FMParametrization
+from gfn.src.gfn.losses.sub_trajectory_balance import SubTBParametrization, SubTrajectoryBalance
+from gfn.src.gfn.losses.trajectory_balance import TBParametrization, TrajectoryBalance
+from gfn.src.gfn.samplers.actions_samplers import DiscreteActionsSampler
+from gfn.src.gfn.samplers.trajectories_sampler import TrajectoriesSampler
 
 
 @pytest.mark.parametrize("env_name", ["HyperGrid", "DiscreteEBM"])

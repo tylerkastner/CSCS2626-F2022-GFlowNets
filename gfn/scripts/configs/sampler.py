@@ -3,9 +3,9 @@ from typing import Tuple
 
 from simple_parsing.helpers import JsonSerializable
 
-from gfn.envs import Env
-from gfn.losses import FMParametrization, Parametrization, PFBasedParametrization
-from gfn.samplers import DiscreteActionsSampler, TrajectoriesSampler
+from gfn.src.gfn.envs import Env
+from gfn.src.gfn.losses import FMParametrization, Parametrization, PFBasedParametrization
+from gfn.src.gfn.samplers import DiscreteActionsSampler, TrajectoriesSampler
 
 
 @dataclass

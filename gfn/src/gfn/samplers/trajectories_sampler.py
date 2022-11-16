@@ -3,9 +3,9 @@ from typing import List, Optional
 import torch
 from torchtyping import TensorType
 
-from gfn.containers import States, Trajectories
-from gfn.envs import Env
-from gfn.samplers.actions_samplers import ActionsSampler, BackwardActionsSampler
+from gfn.src.gfn.containers import States, Trajectories
+from gfn.src.gfn.envs import Env
+from gfn.src.gfn.samplers.actions_samplers import ActionsSampler, BackwardActionsSampler
 
 # Typing
 StatesTensor = TensorType["n_trajectories", "state_shape", torch.float]

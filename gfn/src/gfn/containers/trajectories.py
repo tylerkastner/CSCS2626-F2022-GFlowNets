@@ -3,14 +3,14 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Sequence
 
 if TYPE_CHECKING:
-    from gfn.envs import Env
-    from gfn.containers.states import States
+    from gfn.src.gfn.envs import Env
+    from gfn.src.gfn.containers.states import States
 
 import torch
 from torchtyping import TensorType
 
-from gfn.containers.base import Container
-from gfn.containers.transitions import Transitions
+from gfn.src.gfn.containers.base import Container
+from gfn.src.gfn.containers.transitions import Transitions
 
 # Typing  --- n_transitions is an int
 Tensor2D = TensorType["max_length", "n_trajectories", torch.long]

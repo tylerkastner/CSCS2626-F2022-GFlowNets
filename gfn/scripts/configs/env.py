@@ -4,7 +4,7 @@ from typing import Literal
 from simple_parsing import choice, subgroups
 from simple_parsing.helpers import JsonSerializable
 
-from gfn.envs import DiscreteEBMEnv, Env, HyperGrid
+from gfn.src.gfn.envs import DiscreteEBMEnv, Env, HyperGrid
 
 
 @dataclass

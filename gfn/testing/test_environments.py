@@ -1,8 +1,8 @@
 import pytest
 import torch
 
-from gfn.envs import HyperGrid, DiscreteEBMEnv
-from gfn.envs.env import NonValidActionsError
+from gfn.src.gfn.envs import HyperGrid, DiscreteEBMEnv
+from gfn.src.gfn.envs.env import NonValidActionsError
 
 
 @pytest.mark.parametrize("preprocessor", ["Identity", "OneHot", "KHot"])

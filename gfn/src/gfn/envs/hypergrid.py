@@ -9,9 +9,9 @@ from einops import rearrange
 from gymnasium.spaces import Discrete
 from torchtyping import TensorType
 
-from gfn.containers.states import States
-from gfn.envs.env import Env
-from gfn.envs.preprocessors import (
+from gfn.src.gfn.containers.states import States
+from gfn.src.gfn.envs.env import Env
+from gfn.src.gfn.envs.preprocessors import (
     IdentityPreprocessor,
     KHotPreprocessor,
     OneHotPreprocessor,

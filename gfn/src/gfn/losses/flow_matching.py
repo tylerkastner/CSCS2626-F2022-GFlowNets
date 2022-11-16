@@ -4,12 +4,12 @@ from typing import Tuple
 import torch
 from torchtyping import TensorType
 
-from gfn.containers.states import States, correct_cast
-from gfn.distributions import EmpiricalTrajectoryDistribution, TrajectoryDistribution
-from gfn.envs import Env
-from gfn.estimators import LogEdgeFlowEstimator
-from gfn.losses.base import Parametrization, StateDecomposableLoss
-from gfn.samplers import DiscreteActionsSampler, TrajectoriesSampler
+from gfn.src.gfn.containers.states import States, correct_cast
+from gfn.src.gfn.distributions import EmpiricalTrajectoryDistribution, TrajectoryDistribution
+from gfn.src.gfn.envs import Env
+from gfn.src.gfn.estimators import LogEdgeFlowEstimator
+from gfn.src.gfn.losses.base import Parametrization, StateDecomposableLoss
+from gfn.src.gfn.samplers import DiscreteActionsSampler, TrajectoriesSampler
 
 # Typing
 ScoresTensor = TensorType["n_states", float]

@@ -2,10 +2,10 @@ from typing import Dict, Optional
 
 import torch
 
-from gfn.containers import States, Trajectories, Transitions
-from gfn.distributions import EmpiricalTerminatingStatesDistribution
-from gfn.envs import Env
-from gfn.losses import (
+from gfn.src.gfn.containers import States, Trajectories, Transitions
+from gfn.src.gfn.distributions import EmpiricalTerminatingStatesDistribution
+from gfn.src.gfn.envs import Env
+from gfn.src.gfn.losses import (
     EdgeDecomposableLoss,
     Loss,
     Parametrization,

@@ -6,7 +6,7 @@ import torch
 from simple_parsing import subgroups
 from simple_parsing.helpers import JsonSerializable
 
-from gfn.losses import Parametrization
+from gfn.src.gfn.losses import Parametrization
 
 
 @dataclass

@@ -6,8 +6,8 @@ import torch
 from gymnasium.spaces import Discrete, Space
 from torchtyping import TensorType
 
-from gfn.containers.states import States, correct_cast
-from gfn.envs.preprocessors import IdentityPreprocessor, Preprocessor
+from gfn.src.gfn.containers.states import States, correct_cast
+from gfn.src.gfn.envs.preprocessors import IdentityPreprocessor, Preprocessor
 
 # Typing
 TensorLong = TensorType["batch_shape", torch.long]

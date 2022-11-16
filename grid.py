@@ -4,12 +4,12 @@ import tqdm
 import yaml
 import munch
 from utils import render_distribution
-from gfn.envs import HyperGrid
-from gfn.estimators import LogitPFEstimator, LogitPBEstimator, LogZEstimator
-from gfn.losses import TBParametrization, TrajectoryBalance
-from gfn.samplers import DiscreteActionsSampler, TrajectoriesSampler
-from gfn.containers.replay_buffer import ReplayBuffer
-from gfn.utils import trajectories_to_training_samples, validate
+from gfn.src.gfn.envs import HyperGrid
+from gfn.src.gfn.estimators import LogitPFEstimator, LogitPBEstimator, LogZEstimator
+from gfn.src.gfn.losses import TBParametrization, TrajectoryBalance
+from gfn.src.gfn.samplers import DiscreteActionsSampler, TrajectoriesSampler
+from gfn.src.gfn.containers.replay_buffer import ReplayBuffer
+from gfn.src.gfn.utils import trajectories_to_training_samples, validate
 
 
 with open("config.yml", "r") as ymlfile:

@@ -6,17 +6,17 @@ from typing import Tuple
 import torch
 from torchtyping import TensorType
 
-from gfn.containers.states import States, correct_cast
-from gfn.containers.trajectories import Trajectories
-from gfn.containers.transitions import Transitions
-from gfn.distributions import (
+from gfn.src.gfn.containers.states import States, correct_cast
+from gfn.src.gfn.containers.trajectories import Trajectories
+from gfn.src.gfn.containers.transitions import Transitions
+from gfn.src.gfn.distributions import (
     EmpiricalTrajectoryDistribution,
     TrajectoryBasedTerminatingStateDistribution,
     TrajectoryDistribution,
 )
-from gfn.envs import Env
-from gfn.estimators import LogitPBEstimator, LogitPFEstimator
-from gfn.samplers import DiscreteActionsSampler, TrajectoriesSampler
+from gfn.src.gfn.envs import Env
+from gfn.src.gfn.estimators import LogitPBEstimator, LogitPFEstimator
+from gfn.src.gfn.samplers import DiscreteActionsSampler, TrajectoriesSampler
 
 # Typing
 LogPTrajectoriesTensor = TensorType["max_length", "n_trajectories", float]
