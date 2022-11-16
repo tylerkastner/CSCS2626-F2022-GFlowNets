@@ -30,11 +30,7 @@ class TrajectoriesSampler:
         self.actions_sampler = actions_sampler
         self.is_backward = isinstance(actions_sampler, BackwardActionsSampler)
 
-    def sample_trajectories(
-        self,
-        states: Optional[States] = None,
-        n_trajectories: Optional[int] = None,
-    ) -> Trajectories:
+    def sample_trajectories(self, states: Optional[States] = None, n_trajectories: Optional[int] = None, ) -> Trajectories:
         if states is None:
             assert (
                 n_trajectories is not None
@@ -56,9 +52,7 @@ class TrajectoriesSampler:
         trajectories_dones = torch.zeros(
             n_trajectories, dtype=torch.long, device=device
         )
-        trajectories_rewards = torch.zeros(
-            n_trajectories, dtype=torch.float, device=device
-        )
+        trajectories_rewards = torch.zeros(n_trajectories, dtype=torch.float, device=device)
 
         step = 0
 

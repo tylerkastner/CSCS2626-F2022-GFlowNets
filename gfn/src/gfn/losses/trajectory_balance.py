@@ -51,13 +51,9 @@ class TrajectoryBalance(TrajectoryDecomposableLoss):
         )
         self.on_policy = on_policy
 
-    def get_scores(
-        self, trajectories: Trajectories
-    ) -> Tuple[ScoresTensor, ScoresTensor, ScoresTensor]:
+    def get_scores(self, trajectories: Trajectories) -> Tuple[ScoresTensor, ScoresTensor, ScoresTensor]:
 
-        log_pf_trajectories, log_pb_trajectories = self.get_pfs_and_pbs(
-            trajectories, no_pf=self.on_policy
-        )
+        log_pf_trajectories, log_pb_trajectories = self.get_pfs_and_pbs(trajectories, no_pf=self.on_policy)
         if self.on_policy:
             log_pf_trajectories = trajectories.log_probs
 

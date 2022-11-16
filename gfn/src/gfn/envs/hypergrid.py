@@ -42,6 +42,7 @@ class HyperGrid(Env):
         R1: float = 0.5,
         R2: float = 2.0,
         reward_cos: bool = False,
+        reward_net = None,
         device_str: Literal["cpu", "cuda"] = "cpu",
         preprocessor_name: Literal["KHot", "OneHot", "Identity"] = "KHot",
     ):
@@ -67,6 +68,7 @@ class HyperGrid(Env):
         self.R1 = R1
         self.R2 = R2
         self.reward_cos = reward_cos
+        self.reward_net = reward_net
 
         s0 = torch.zeros(ndim, dtype=torch.long, device=torch.device(device_str))
         sf = torch.full(
@@ -154,14 +156,17 @@ class HyperGrid(Env):
 
     def reward(self, final_states: States) -> TensorFloat:
         final_states_raw = final_states.states_tensor
-        R0, R1, R2 = (self.R0, self.R1, self.R2)
-        ax = abs(final_states_raw / (self.height - 1) - 0.5)
-        if not self.reward_cos:
-            reward = (R0 + (0.25 < ax).prod(-1) * R1 + ((0.3 < ax) * (ax < 0.4)).prod(-1) * R2)
+        if self.reward_net is not None:
+            reward = torch.exp(self.reward_net(final_states_raw.to(torch.float32)).detach().squeeze(-1))
         else:
-            pdf_input = ax * 5
-            pdf = 1.0 / (2 * torch.pi) ** 0.5 * torch.exp(-(pdf_input**2) / 2)
-            reward = R0 + ((torch.cos(ax * 50) + 1) * pdf).prod(-1) * R1
+            R0, R1, R2 = (self.R0, self.R1, self.R2)
+            ax = abs(final_states_raw / (self.height - 1) - 0.5)
+            if not self.reward_cos:
+                reward = (R0 + (0.25 < ax).prod(-1) * R1 + ((0.3 < ax) * (ax < 0.4)).prod(-1) * R2)
+            else:
+                pdf_input = ax * 5
+                pdf = 1.0 / (2 * torch.pi) ** 0.5 * torch.exp(-(pdf_input**2) / 2)
+                reward = R0 + ((torch.cos(ax * 50) + 1) * pdf).prod(-1) * R1
         return reward
 
     def get_states_indices(self, states: States) -> TensorLong:

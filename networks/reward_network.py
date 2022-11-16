@@ -13,6 +13,10 @@ class RewardNetwork(nn.Module):
       nn.ReLU(),
       nn.Linear(hidden_dim1, out_features),
     )
+    # self.net = nn.Sequential(
+    #   nn.Linear(state_dim, out_features)
+    # )
 
   def forward(self, x):
+    x = x/16
     return self.net(x)
