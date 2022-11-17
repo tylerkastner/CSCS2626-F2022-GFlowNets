@@ -27,7 +27,7 @@ def iterate_trajs(dataset, batch_size):
     return ((pos, dataset[pos:pos + batch_size]) for pos in range(0, len(dataset), batch_size))
 
 
-force_generate_dataset = True
+force_generate_dataset = False
 n_gt_trajs = 10000
 def train(config, env):
   all_states = env.build_grid()
@@ -35,12 +35,13 @@ def train(config, env):
   if force_generate_dataset:
     trajectories = generate_trajs(env=env, n=n_gt_trajs)
     with open("./trajectories.pkl", "wb") as dill_file:
-      dill.dump([traj.states.states_tensor for traj in trajectories], dill_file)
+      trajectories = [traj.states.states_tensor for traj in trajectories]
+      dill.dump(trajectories, dill_file)
   else:
     with open("./trajectories.pkl", "rb") as dill_file:
       trajectories = dill.load(dill_file)
 
-  last_states = torch.cat([traj.states.states_tensor[-2] for traj in trajectories])
+  last_states = torch.cat([traj[-2] for traj in trajectories])
   last_states_one_hot = torch.nn.functional.one_hot(last_states, num_classes=config.env.height)
   last_states_grid = (last_states_one_hot[:,0,:][:,:,None] * last_states_one_hot[:,1,:][:,None]).to(torch.float32)
   last_states_grid = last_states_grid.mean(0)
@@ -48,57 +49,27 @@ def train(config, env):
   plt.title('Behavior distribution')
   plt.show()
 
-  # # add 1 for action
-  # reward_net = RewardNetwork(state_dim = state_shape + 1)
 
   reward_net = RewardNetwork(state_dim=env.ndim)
   reward_optimizer = torch.optim.Adam(reward_net.parameters(), lr=1e-3)
 
   reward_losses = []
 
-  n_gfn_sample = 100
-  #gfn_parametrization, trajectories_sampler_gfn = train_grid_gfn(config, None, reward_net=reward_net, n_train_steps=100)
+  # n_gfn_sample = 100
+  # gfn_parametrization, trajectories_sampler_gfn = train_grid_gfn(config, None, reward_net=reward_net, n_train_steps=100)
 
   for i_batch, batch in iterate_trajs(trajectories, batch_size=32):
-    # states, actions = traj.states.states_tensor, torch.unsqueeze(traj.actions, -1)
-    # # Remove last state in trajectory since there is no reward to predict from it
-    # states = states[:-1]
-    #
-    # states_and_actions = torch.cat((states, actions), dim=-1)
-    # states_and_actions = states_and_actions.to(torch.float32)
-    #
-    # rewards = reward_net(states_and_actions)
-    #
-    # # No average since for now there is a single trajectory in batch - to change if we increase BS
-    # trajectory_reward = torch.sum(rewards)
-    #
-    # # This is the Z which will be learnt by GFlowNet
-    # Z = 1
-    #
-    # loss = trajectory_reward - np.log(Z)
-    # reward_optimizer.zero_grad()
-    # loss.backward()
-    # reward_optimizer.step()
-    #
-    # reward_losses.append(loss.detach())
-
-    ####################################################################################################################
-    ####################################################################################################################
-    ####################################################################################################################
-
-
-    last_states = list(map(lambda traj: traj.states.states_tensor[-2].to(torch.float32), batch))
-    last_states = torch.stack(last_states)
+    print(i_batch)
+    last_states = torch.cat([traj[-2] for traj in batch])
 
     trajectory_reward = reward_net(last_states)
-
     all_rewards = reward_net(all_states.states_tensor.reshape(-1, config.env.ndim))
     Z = torch.mean(torch.exp(-all_rewards))
 
-    # if i_traj % 1000 == 0:
-    #   plt.matshow(-all_rewards.reshape(config.env.height, config.env.height).detach().numpy())
-    #   plt.title(i_traj)
-    #   plt.show()
+    if i_batch % 2000 == 0:
+      plt.matshow(-all_rewards.reshape(config.env.height, config.env.height).detach().numpy())
+      plt.title(i_batch)
+      plt.show()
 
     # # This is the Z which will be learnt by GFlowNet
     # gfn_sample = trajectories_sampler_gfn.sample(n_gfn_sample).last_states.states_tensor.to(torch.float32)
@@ -117,6 +88,9 @@ def train(config, env):
     # Fit gfn to new reward function
     #gfn_parametrization, trajectories_sampler_gfn = train_grid_gfn(config, gfn_parametrization, trajectories_sampler_gfn, reward_net=reward_net, n_train_steps=100)
 
+
+  plt.plot(reward_losses)
+  plt.show()
 
 if __name__ == '__main__':
   with open("config.yml", "r") as ymlfile:
