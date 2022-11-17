@@ -2,6 +2,11 @@ import torch
 import numpy as np
 import yaml
 import munch
+import tqdm
+
+import time
+
+from torch.utils.data import TensorDataset, DataLoader
 import dill
 
 from sample_trajs import generate_trajs
@@ -15,12 +20,17 @@ from gfn.src.gfn.distributions import (
     TrajectoryDistribution,
 )
 
+# TK: Hacky dataloader until we figure out batch size (works but not clean)
+def iterate_trajs(dataset, batch_size):
+    return ((pos, dataset[pos:pos + batch_size]) for pos in range(0, len(dataset), batch_size))
+
+
 def train(config, env):
   all_states = env.build_grid()
 
-  trajectories = generate_trajs(env=env, n=10)
-  with open("./trajectories", "wb") as dill_file:
-    dill.dump(resultstatsDF, dill_file)
+  trajectories = generate_trajs(env=env, n=1000)
+  # with open("./trajectories", "wb") as dill_file:
+  #   dill.dump(resultstatsDF, dill_file)
 
 
   last_states = torch.cat([traj.states.states_tensor[-2] for traj in trajectories])
@@ -41,8 +51,8 @@ def train(config, env):
 
   n_gfn_sample = 100
   #gfn_parametrization, trajectories_sampler_gfn = train_grid_gfn(config, None, reward_net=reward_net, n_train_steps=100)
-  for i_traj, traj in enumerate(trajectories):
-    print(i_traj)
+
+  for i_batch, batch in iterate_trajs(trajectories, batch_size=32):
     # states, actions = traj.states.states_tensor, torch.unsqueeze(traj.actions, -1)
     # # Remove last state in trajectory since there is no reward to predict from it
     # states = states[:-1]
@@ -68,25 +78,25 @@ def train(config, env):
     ####################################################################################################################
     ####################################################################################################################
     ####################################################################################################################
+    for traj in batch:
+      states = traj.states.states_tensor
+      last_state = states[-2].to(torch.float32)
 
-    states = traj.states.states_tensor
-    last_state = states[-2].to(torch.float32)
+      trajectory_reward = reward_net(last_state)
+      all_rewards = reward_net(all_states.states_tensor.reshape(-1, config.env.ndim))
+      Z = torch.mean(torch.exp(-all_rewards))
+      # if i_traj % 1000 == 0:
+      #   plt.matshow(-all_rewards.reshape(config.env.height, config.env.height).detach().numpy())
+      #   plt.title(i_traj)
+      #   plt.show()
 
-    trajectory_reward = reward_net(last_state)
-    all_rewards = reward_net(all_states.states_tensor.reshape(-1, config.env.ndim))
-    Z = torch.mean(torch.exp(-all_rewards))
-    if i_traj % 1000 == 0:
-      plt.matshow(-all_rewards.reshape(config.env.height, config.env.height).detach().numpy())
-      plt.title(i_traj)
-      plt.show()
+      # # This is the Z which will be learnt by GFlowNet
+      # gfn_sample = trajectories_sampler_gfn.sample(n_gfn_sample).last_states.states_tensor.to(torch.float32)
+      # gfn_Z = torch.exp(gfn_parametrization.logZ.tensor)
+      # sample_likelihood = torch.exp(-reward_net(gfn_sample)).detach() / gfn_Z.detach()
+      # Z = torch.mean(torch.exp(-reward_net(gfn_sample)) / sample_likelihood)
 
-    # # This is the Z which will be learnt by GFlowNet
-    # gfn_sample = trajectories_sampler_gfn.sample(n_gfn_sample).last_states.states_tensor.to(torch.float32)
-    # gfn_Z = torch.exp(gfn_parametrization.logZ.tensor)
-    # sample_likelihood = torch.exp(-reward_net(gfn_sample)).detach() / gfn_Z.detach()
-    # Z = torch.mean(torch.exp(-reward_net(gfn_sample)) / sample_likelihood)
-
-    loss = trajectory_reward + torch.log(Z)
+      loss = trajectory_reward + torch.log(Z)
     loss = loss.mean()
     reward_optimizer.zero_grad()
     loss.backward()
