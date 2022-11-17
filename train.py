@@ -29,7 +29,7 @@ def iterate_trajs(dataset, batch_size):
 
 force_generate_dataset = False
 n_gt_trajs = 10000
-n_epochs=10
+n_epochs=100
 def train(config, env):
   all_states = env.build_grid()
 
@@ -76,7 +76,8 @@ def train(config, env):
       # sample_likelihood = torch.exp(-reward_net(gfn_sample)).detach() / gfn_Z.detach()
       # Z = torch.mean(torch.exp(-reward_net(gfn_sample)) / sample_likelihood)
 
-      loss = torch.mean(trajectory_reward) + torch.log(Z)
+      loss = trajectory_reward + torch.log(Z)
+      loss = torch.mean(loss)
       reward_optimizer.zero_grad()
       loss.backward()
       reward_optimizer.step()
