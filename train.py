@@ -29,7 +29,7 @@ def iterate_trajs(dataset, batch_size):
 
 force_generate_dataset = False
 n_gt_trajs = 10000
-n_epochs=100
+n_epochs=10
 def train(config, env):
   all_states = env.build_grid()
 
@@ -59,7 +59,8 @@ def train(config, env):
   # n_gfn_sample = 100
   # gfn_parametrization, trajectories_sampler_gfn = train_grid_gfn(config, None, reward_net=reward_net, n_train_steps=100)
 
-  for epoch in tqdm.trange(n_epochs):
+  pbar = tqdm.trange(n_epochs)
+  for epoch in pbar:
     reward_losses_per_batch = []
     for i_batch, batch in iterate_trajs(trajectories, batch_size=32):
       last_states = torch.cat([traj[-2] for traj in batch])
@@ -75,8 +76,7 @@ def train(config, env):
       # sample_likelihood = torch.exp(-reward_net(gfn_sample)).detach() / gfn_Z.detach()
       # Z = torch.mean(torch.exp(-reward_net(gfn_sample)) / sample_likelihood)
 
-      loss = trajectory_reward + torch.log(Z)
-      loss = loss.mean()
+      loss = torch.mean(trajectory_reward) + torch.log(Z)
       reward_optimizer.zero_grad()
       loss.backward()
       reward_optimizer.step()
@@ -86,7 +86,9 @@ def train(config, env):
       # Fit gfn to new reward function
       #gfn_parametrization, trajectories_sampler_gfn = train_grid_gfn(config, gfn_parametrization, trajectories_sampler_gfn, reward_net=reward_net, n_train_steps=100)
 
-    reward_losses_per_epoch.append(torch.mean(torch.stack(reward_losses_per_batch)))
+    average_loss_per_epoch = torch.mean(torch.stack(reward_losses_per_batch))
+    pbar.set_description('{}'.format(average_loss_per_epoch))
+    reward_losses_per_epoch.append(average_loss_per_epoch)
 
     if epoch % 2 == 0:
       plt.matshow(-all_rewards.reshape(config.env.height, config.env.height).detach().numpy())
