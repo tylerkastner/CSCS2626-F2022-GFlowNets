@@ -78,7 +78,7 @@ def train(config, env):
         Z = torch.mean(torch.exp(-reward_net(gfn_sample)) / sample_likelihood)
       else:
         all_rewards = reward_net(all_states.states_tensor.reshape(-1, config.env.ndim))
-        Z = torch.mean(torch.exp(-all_rewards))
+        Z = torch.sum(torch.exp(-all_rewards))
 
 
       loss = trajectory_reward + torch.log(Z)
@@ -105,7 +105,7 @@ def train(config, env):
                                                                      n_train_steps=300)
 
       all_rewards = reward_net(all_states.states_tensor.reshape(-1, config.env.ndim))
-      Z = torch.mean(torch.exp(-all_rewards))
+      Z = torch.sum(torch.exp(-all_rewards))
       print('GT Z is {} and gfn Z is {}'.format(Z, torch.exp(gfn_parametrization.logZ.tensor)))
       # plt.matshow(-all_rewards.reshape(config.env.height, config.env.height).detach().numpy())
       # plt.title(epoch)

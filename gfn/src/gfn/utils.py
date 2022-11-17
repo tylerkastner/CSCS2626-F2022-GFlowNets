@@ -80,6 +80,8 @@ def validate(
     validation_info = {"l1_dist": l1_dist}
     if logZ is not None:
         validation_info["logZ_diff"] = abs(logZ - true_logZ)
+        validation_info["true_logZ"] = true_logZ
+        validation_info["est_logZ"] = logZ
 
     if return_terminating_distribution:
         return validation_info, final_states_dist_pmf
