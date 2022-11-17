@@ -27,13 +27,18 @@ def iterate_trajs(dataset, batch_size):
     return ((pos, dataset[pos:pos + batch_size]) for pos in range(0, len(dataset), batch_size))
 
 
+force_generate_dataset = True
+n_gt_trajs = 10000
 def train(config, env):
   all_states = env.build_grid()
 
-  trajectories = generate_trajs(env=env, n=1000)
-  # with open("./trajectories", "wb") as dill_file:
-  #   dill.dump(resultstatsDF, dill_file)
-
+  if force_generate_dataset:
+    trajectories = generate_trajs(env=env, n=n_gt_trajs)
+    with open("./trajectories.pkl", "wb") as dill_file:
+      dill.dump([traj.states.states_tensor for traj in trajectories], dill_file)
+  else:
+    with open("./trajectories.pkl", "rb") as dill_file:
+      trajectories = dill.load(dill_file)
 
   last_states = torch.cat([traj.states.states_tensor[-2] for traj in trajectories])
   last_states_one_hot = torch.nn.functional.one_hot(last_states, num_classes=config.env.height)
