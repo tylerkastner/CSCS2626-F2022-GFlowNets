@@ -19,7 +19,8 @@ def train_grid_gfn(config, gfn_parametrization=None, trajectories_sampler=None, 
     env = HyperGrid(ndim=config.env.ndim, height=config.env.height, R0=0.01, reward_net=reward_net)  # Grid of size 8x8x8x8
     all_states = env.build_grid()
     all_rewards = env.reward(all_states)
-    render_distribution(all_rewards, config.env.height, config.env.ndim, 'true_reward_{}d'.format(config.env.ndim))
+    if verbose == 0:
+        render_distribution(all_rewards, config.env.height, config.env.ndim, 'true_reward_{}d'.format(config.env.ndim))
 
     if gfn_parametrization is None:
         logit_PF = LogitPFEstimator(env=env, module_name='NeuralNet')
@@ -72,7 +73,7 @@ def train_grid_gfn(config, gfn_parametrization=None, trajectories_sampler=None, 
         unique_visited_states.update((t.numpy().tobytes(), 1) for t in trajectories.last_states.states_tensor)
         to_log = {"loss": loss.item(), "states_visited": states_visited, 'n_unique_states_visited': len(unique_visited_states)}
 
-        if i % config.experiment.validation_interval == 0:
+        if i % config.experiment.validation_interval == 0 and verbose == 0:
             validation_info, final_states_dist_pmf = validate(env, parametrization, config.experiment.n_validation_samples, visited_terminating_states, return_terminating_distribution=True)
             to_log.update(validation_info)
             tqdm.tqdm.write(f"Iteration: {i}: {to_log}")

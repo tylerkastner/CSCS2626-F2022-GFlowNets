@@ -157,7 +157,7 @@ class HyperGrid(Env):
     def reward(self, final_states: States) -> TensorFloat:
         final_states_raw = final_states.states_tensor
         if self.reward_net is not None:
-            reward = torch.exp(self.reward_net(final_states_raw.to(torch.float32)).detach().squeeze(-1))
+            reward = torch.exp(-self.reward_net(final_states_raw.to(torch.float32)).detach().squeeze(-1))
         else:
             R0, R1, R2 = (self.R0, self.R1, self.R2)
             ax = abs(final_states_raw / (self.height - 1) - 0.5)

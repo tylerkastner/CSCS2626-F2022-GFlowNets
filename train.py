@@ -27,7 +27,8 @@ def iterate_trajs(dataset, batch_size):
     return ((pos, dataset[pos:pos + batch_size]) for pos in range(0, len(dataset), batch_size))
 
 
-force_generate_dataset = True
+use_gf_Z = True
+force_generate_dataset = False
 n_gt_trajs = 10000
 n_epochs = 100
 def train(config, env):
@@ -56,9 +57,8 @@ def train(config, env):
 
   reward_losses_per_epoch = []
 
-  # n_gfn_sample = 100
-  # gfn_parametrization, trajectories_sampler_gfn = train_grid_gfn(config, None, reward_net=reward_net, n_train_steps=100)
-
+  n_gfn_sample = 200
+  gfn_parametrization, trajectories_sampler_gfn = train_grid_gfn(config, None, reward_net=reward_net, n_train_steps=1000)
   pbar = tqdm.trange(n_epochs)
   for epoch in pbar:
     reward_losses_per_batch = []
@@ -66,15 +66,17 @@ def train(config, env):
       last_states = torch.cat([traj[-2] for traj in batch])
 
       trajectory_reward = reward_net(last_states)
-      all_rewards = reward_net(all_states.states_tensor.reshape(-1, config.env.ndim))
-      Z = torch.mean(torch.exp(-all_rewards))
 
+      if use_gf_Z:
+        # This is the Z which will be learnt by GFlowNet
+        gfn_sample = trajectories_sampler_gfn.sample(n_gfn_sample).last_states.states_tensor.to(torch.float32)
+        gfn_Z = torch.exp(gfn_parametrization.logZ.tensor)
+        sample_likelihood = torch.exp(-reward_net(gfn_sample)).detach() / gfn_Z.detach()
+        Z = torch.mean(torch.exp(-reward_net(gfn_sample)) / sample_likelihood)
+      else:
+        all_rewards = reward_net(all_states.states_tensor.reshape(-1, config.env.ndim))
+        Z = torch.mean(torch.exp(-all_rewards))
 
-      # # This is the Z which will be learnt by GFlowNet
-      # gfn_sample = trajectories_sampler_gfn.sample(n_gfn_sample).last_states.states_tensor.to(torch.float32)
-      # gfn_Z = torch.exp(gfn_parametrization.logZ.tensor)
-      # sample_likelihood = torch.exp(-reward_net(gfn_sample)).detach() / gfn_Z.detach()
-      # Z = torch.mean(torch.exp(-reward_net(gfn_sample)) / sample_likelihood)
 
       loss = trajectory_reward + torch.log(Z)
       loss = torch.mean(loss)
@@ -84,8 +86,11 @@ def train(config, env):
 
       reward_losses_per_batch.append(loss.detach())
 
-      # Fit gfn to new reward function
-      #gfn_parametrization, trajectories_sampler_gfn = train_grid_gfn(config, gfn_parametrization, trajectories_sampler_gfn, reward_net=reward_net, n_train_steps=100)
+      if use_gf_Z:
+        # Fit gfn to new reward function
+        gfn_parametrization, trajectories_sampler_gfn = train_grid_gfn(config, gfn_parametrization,
+                                                                       trajectories_sampler_gfn, reward_net=reward_net,
+                                                                       n_train_steps=100, verbose=1)
 
     average_loss_per_epoch = torch.mean(torch.stack(reward_losses_per_batch))
     pbar.set_description('{}'.format(average_loss_per_epoch))
