@@ -68,25 +68,31 @@ class Get_Traj():
 
         return trajectory
 
-def generate_trajs(env, n=10000, filename='sample_trajs.pkl'):
+def generate_trajs(env, n=10000, filename='sample_trajs.pkl', boltzmann=True):
     all_states = env.build_grid()
     all_rewards = env.reward(all_states)
 
     get_traj = Get_Traj(env)
 
-    reward_dict = {}
+    if boltzmann:
+        reward_dict = {}
 
-    for row_idx, row_tensor in enumerate(torch.exp(all_rewards)):
-        for col_idx, value in enumerate(row_tensor):
-            reward_dict[(row_idx, col_idx)] = float(value.numpy())
+        for row_idx, row_tensor in enumerate(torch.exp(all_rewards)):
+            for col_idx, value in enumerate(row_tensor):
+                reward_dict[(row_idx, col_idx)] = float(value.numpy())
 
-    states = list(map(lambda tup: torch.tensor(tup), reward_dict.keys()))
+        states = list(map(lambda tup: torch.tensor(tup), reward_dict.keys()))
 
-    # Workaround since we can only sample from finite list using choice
-    state_dict = { i: state for i, state in enumerate(states) }
-    probabilities = np.fromiter(reward_dict.values(), dtype=float) / sum(reward_dict.values())
+        # Workaround since we can only sample from finite list using choice
+        state_dict = { i: state for i, state in enumerate(states) }
+        probabilities = np.fromiter(reward_dict.values(), dtype=float) / sum(reward_dict.values())
 
-    endpoints = [state_dict[state_idx] for state_idx in choice(len(states), n, p=probabilities)]
+        endpoints = [state_dict[state_idx] for state_idx in choice(len(states), n, p=probabilities)]
+
+    else:
+        optimal_states = (all_rewards == torch.max(all_rewards)).nonzero()
+
+        endpoints = [random.choice(optimal_states) for _ in range(n)]
 
     sample_trajs = []
     for i in range(n):
