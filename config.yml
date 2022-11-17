@@ -5,7 +5,8 @@ env:
   nactions: 3
 
 experiment:
-  batch_size: 128
+  batch_size: 64
+  batch_size_reward_fn: 128
   use_replay_buffer: False
   replay_buffer_size: 1000
   validation_interval: 100

@@ -64,7 +64,7 @@ def train(config, env):
   pbar = tqdm.trange(n_epochs)
   for epoch in pbar:
     reward_losses_per_batch = []
-    for items in tqdm.tqdm(iterate_trajs(trajectories, batch_size=config.experiment.batch_size), total=len(trajectories)/config.experiment.batch_size, position=0, leave=True):
+    for items in tqdm.tqdm(iterate_trajs(trajectories, batch_size=config.experiment.batch_size_reward_fn), total=len(trajectories)/config.experiment.batch_size_reward_fn, position=0, leave=True):
       i_batch, batch = items
       last_states = torch.cat([traj[-2] for traj in batch])
 
