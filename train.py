@@ -29,6 +29,7 @@ def iterate_trajs(dataset, batch_size):
 
 force_generate_dataset = False
 n_gt_trajs = 10000
+n_epochs=100
 def train(config, env):
   all_states = env.build_grid()
 
@@ -53,43 +54,46 @@ def train(config, env):
   reward_net = RewardNetwork(state_dim=env.ndim)
   reward_optimizer = torch.optim.Adam(reward_net.parameters(), lr=1e-3)
 
-  reward_losses = []
+  reward_losses_per_epoch = []
 
   # n_gfn_sample = 100
   # gfn_parametrization, trajectories_sampler_gfn = train_grid_gfn(config, None, reward_net=reward_net, n_train_steps=100)
 
-  for i_batch, batch in iterate_trajs(trajectories, batch_size=32):
-    print(i_batch)
-    last_states = torch.cat([traj[-2] for traj in batch])
+  for epoch in tqdm.trange(n_epochs):
+    reward_losses_per_batch = []
+    for i_batch, batch in iterate_trajs(trajectories, batch_size=32):
+      last_states = torch.cat([traj[-2] for traj in batch])
 
-    trajectory_reward = reward_net(last_states)
-    all_rewards = reward_net(all_states.states_tensor.reshape(-1, config.env.ndim))
-    Z = torch.mean(torch.exp(-all_rewards))
+      trajectory_reward = reward_net(last_states)
+      all_rewards = reward_net(all_states.states_tensor.reshape(-1, config.env.ndim))
+      Z = torch.mean(torch.exp(-all_rewards))
 
-    if i_batch % 2000 == 0:
+
+      # # This is the Z which will be learnt by GFlowNet
+      # gfn_sample = trajectories_sampler_gfn.sample(n_gfn_sample).last_states.states_tensor.to(torch.float32)
+      # gfn_Z = torch.exp(gfn_parametrization.logZ.tensor)
+      # sample_likelihood = torch.exp(-reward_net(gfn_sample)).detach() / gfn_Z.detach()
+      # Z = torch.mean(torch.exp(-reward_net(gfn_sample)) / sample_likelihood)
+
+      loss = trajectory_reward + torch.log(Z)
+      loss = loss.mean()
+      reward_optimizer.zero_grad()
+      loss.backward()
+      reward_optimizer.step()
+
+      reward_losses_per_batch.append(loss.detach())
+
+      # Fit gfn to new reward function
+      #gfn_parametrization, trajectories_sampler_gfn = train_grid_gfn(config, gfn_parametrization, trajectories_sampler_gfn, reward_net=reward_net, n_train_steps=100)
+
+    reward_losses_per_epoch.append(torch.mean(torch.stack(reward_losses_per_batch)))
+
+    if epoch % 2 == 0:
       plt.matshow(-all_rewards.reshape(config.env.height, config.env.height).detach().numpy())
-      plt.title(i_batch)
+      plt.title(epoch)
       plt.show()
 
-    # # This is the Z which will be learnt by GFlowNet
-    # gfn_sample = trajectories_sampler_gfn.sample(n_gfn_sample).last_states.states_tensor.to(torch.float32)
-    # gfn_Z = torch.exp(gfn_parametrization.logZ.tensor)
-    # sample_likelihood = torch.exp(-reward_net(gfn_sample)).detach() / gfn_Z.detach()
-    # Z = torch.mean(torch.exp(-reward_net(gfn_sample)) / sample_likelihood)
-
-    loss = trajectory_reward + torch.log(Z)
-    loss = loss.mean()
-    reward_optimizer.zero_grad()
-    loss.backward()
-    reward_optimizer.step()
-
-    reward_losses.append(loss.detach())
-
-    # Fit gfn to new reward function
-    #gfn_parametrization, trajectories_sampler_gfn = train_grid_gfn(config, gfn_parametrization, trajectories_sampler_gfn, reward_net=reward_net, n_train_steps=100)
-
-
-  plt.plot(reward_losses)
+  plt.plot(reward_losses_per_epoch)
   plt.show()
 
 if __name__ == '__main__':
