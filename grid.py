@@ -52,7 +52,7 @@ def train_grid_gfn(config, gfn_parametrization=None, trajectories_sampler=None, 
 
     states_visited = 0
     unique_visited_states = {}
-    for i in tqdm.trange(n_train_steps):
+    for i in tqdm.trange(n_train_steps, disable=False if verbose==0 else True, position=0, leave=True):
         trajectories = trajectories_sampler.sample(n_trajectories=config.experiment.batch_size)
         training_samples = trajectories_to_training_samples(trajectories, loss_fn)
         if replay_buffer is not None:

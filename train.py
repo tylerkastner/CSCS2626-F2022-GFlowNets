@@ -58,11 +58,14 @@ def train(config, env):
   reward_losses_per_epoch = []
 
   n_gfn_sample = 200
-  gfn_parametrization, trajectories_sampler_gfn = train_grid_gfn(config, None, reward_net=reward_net, n_train_steps=1000)
+  print('Train gfn to initial distribution...')
+  gfn_parametrization, trajectories_sampler_gfn = train_grid_gfn(config, None, reward_net=reward_net, n_train_steps=30)
+  print('\nStart training reward net')
   pbar = tqdm.trange(n_epochs)
   for epoch in pbar:
     reward_losses_per_batch = []
-    for i_batch, batch in iterate_trajs(trajectories, batch_size=128):
+    for items in tqdm.tqdm(iterate_trajs(trajectories, batch_size=config.experiment.batch_size), total=len(trajectories)/config.experiment.batch_size, position=0, leave=True):
+      i_batch, batch = items
       last_states = torch.cat([traj[-2] for traj in batch])
 
       trajectory_reward = reward_net(last_states)
@@ -90,16 +93,23 @@ def train(config, env):
         # Fit gfn to new reward function
         gfn_parametrization, trajectories_sampler_gfn = train_grid_gfn(config, gfn_parametrization,
                                                                        trajectories_sampler_gfn, reward_net=reward_net,
-                                                                       n_train_steps=100, verbose=1)
+                                                                       n_train_steps=3, verbose=1)
 
     average_loss_per_epoch = torch.mean(torch.stack(reward_losses_per_batch))
     pbar.set_description('{}'.format(average_loss_per_epoch))
     reward_losses_per_epoch.append(average_loss_per_epoch)
 
-    if epoch % 2 == 0:
-      plt.matshow(-all_rewards.reshape(config.env.height, config.env.height).detach().numpy())
-      plt.title(epoch)
-      plt.show()
+    if epoch % config.experiment.full_gfn_retrain == 0:
+      print('Fully retrain gfn...')
+      gfn_parametrization, trajectories_sampler_gfn = train_grid_gfn(config, None, reward_net=reward_net,
+                                                                     n_train_steps=300)
+
+      all_rewards = reward_net(all_states.states_tensor.reshape(-1, config.env.ndim))
+      Z = torch.mean(torch.exp(-all_rewards))
+      print('GT Z is {} and gfn Z is {}'.format(Z, torch.exp(gfn_parametrization.logZ.tensor)))
+      # plt.matshow(-all_rewards.reshape(config.env.height, config.env.height).detach().numpy())
+      # plt.title(epoch)
+      # plt.show()
 
   plt.plot(reward_losses_per_epoch)
   plt.show()
