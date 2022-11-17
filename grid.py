@@ -14,7 +14,7 @@ from gfn.src.gfn.utils import trajectories_to_training_samples, validate
 
 
 
-def train_grid_gfn(config, gfn_parametrization=None, trajectories_sampler=None, reward_net=None, n_train_steps=1000, verbose=0):
+def train_grid_gfn(config, gfn_parametrization=None, trajectories_sampler=None, reward_net=None, gt_trajectories=None, n_train_steps=1000, verbose=0):
 
     env = HyperGrid(ndim=config.env.ndim, height=config.env.height, R0=0.01, reward_net=reward_net)  # Grid of size 8x8x8x8
     all_states = env.build_grid()
@@ -37,12 +37,15 @@ def train_grid_gfn(config, gfn_parametrization=None, trajectories_sampler=None, 
 
     loss_fn = TrajectoryBalance(parametrization=parametrization)
 
-    replay_buffer = None
     visited_terminating_states = (
         env.States.from_batch_shape((0,)) if not config.experiment.resample_for_validation else None
     )
     if config.experiment.use_replay_buffer > 0:
         replay_buffer = ReplayBuffer(env, loss_fn, capacity=config.experiment.replay_buffer_size)
+        if gt_trajectories is not None:
+            replay_buffer.add(gt_trajectories)
+    else:
+        replay_buffer = None
 
     params = [
         {"params": [val for key, val in parametrization.parameters.items() if key != "logZ"], "lr": 0.001},

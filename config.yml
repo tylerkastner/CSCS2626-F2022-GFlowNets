@@ -5,11 +5,16 @@ env:
   nactions: 3
 
 experiment:
-  batch_size: 64
+  n_epochs_reward_fn: 100
   batch_size_reward_fn: 128
+  batch_size: 64
   use_replay_buffer: False
   replay_buffer_size: 1000
   validation_interval: 100
   resample_for_validation: True
   n_validation_samples: 1000
   full_gfn_retrain: 2
+  use_gfn_z: True
+  retrain_on_the_fly: True
+  force_generate_dataset: False
+  n_gt_trajs: 10000

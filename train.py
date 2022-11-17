@@ -15,11 +15,7 @@ from networks.reward_network import RewardNetwork
 from gfn.src.gfn.envs import HyperGrid
 from grid import train_grid_gfn
 import matplotlib.pyplot as plt
-from gfn.src.gfn.distributions import (
-    EmpiricalTrajectoryDistribution,
-    TrajectoryBasedTerminatingStateDistribution,
-    TrajectoryDistribution,
-)
+import copy
 
 # TK: Hacky dataloader until we figure out batch size (works but not clean)
 def iterate_trajs(dataset, batch_size):
@@ -27,15 +23,11 @@ def iterate_trajs(dataset, batch_size):
     return ((pos, dataset[pos:pos + batch_size]) for pos in range(0, len(dataset), batch_size))
 
 
-use_gf_Z = True
-force_generate_dataset = False
-n_gt_trajs = 10000
-n_epochs = 100
 def train(config, env):
   all_states = env.build_grid()
 
-  if force_generate_dataset:
-    trajectories = generate_trajs(env=env, n=n_gt_trajs)
+  if config.experiment.force_generate_dataset:
+    trajectories = generate_trajs(env=env, n=config.experiment.n_gt_trajs)
     with open("./trajectories.pkl", "wb") as dill_file:
       trajectories = [traj.states.states_tensor for traj in trajectories]
       dill.dump(trajectories, dill_file)
@@ -53,15 +45,17 @@ def train(config, env):
 
 
   reward_net = RewardNetwork(state_dim=env.ndim)
+  reward_net_checkpoint = copy.deepcopy(reward_net)
+
   reward_optimizer = torch.optim.Adam(reward_net.parameters(), lr=1e-3)
 
   reward_losses_per_epoch = []
 
   n_gfn_sample = 200
   print('Train gfn to initial distribution...')
-  gfn_parametrization, trajectories_sampler_gfn = train_grid_gfn(config, None, reward_net=reward_net, n_train_steps=30)
+  gfn_parametrization, trajectories_sampler_gfn = train_grid_gfn(config, None, reward_net=reward_net, n_train_steps=200)
   print('\nStart training reward net')
-  pbar = tqdm.trange(n_epochs)
+  pbar = tqdm.trange(config.experiment.n_epochs_reward_fn)
   for epoch in pbar:
     reward_losses_per_batch = []
     for items in tqdm.tqdm(iterate_trajs(trajectories, batch_size=config.experiment.batch_size_reward_fn), total=len(trajectories)/config.experiment.batch_size_reward_fn, position=0, leave=True):
@@ -70,11 +64,14 @@ def train(config, env):
 
       trajectory_reward = reward_net(last_states)
 
-      if use_gf_Z:
+      if config.experiment.use_gfn_z:
         # This is the Z which will be learnt by GFlowNet
         gfn_sample = trajectories_sampler_gfn.sample(n_gfn_sample).last_states.states_tensor.to(torch.float32)
         gfn_Z = torch.exp(gfn_parametrization.logZ.tensor)
-        sample_likelihood = torch.exp(-reward_net(gfn_sample)).detach() / gfn_Z.detach()
+        if config.experiment.retrain_on_the_fly:
+          sample_likelihood = torch.exp(-reward_net(gfn_sample)).detach() / gfn_Z.detach()
+        else:
+          sample_likelihood = torch.exp(-reward_net_checkpoint(gfn_sample)).detach() / gfn_Z.detach()
         Z = torch.mean(torch.exp(-reward_net(gfn_sample)) / sample_likelihood)
       else:
         all_rewards = reward_net(all_states.states_tensor.reshape(-1, config.env.ndim))
@@ -89,11 +86,11 @@ def train(config, env):
 
       reward_losses_per_batch.append(loss.detach())
 
-      if use_gf_Z:
+      if config.experiment.use_gfn_z and config.experiment.retrain_on_the_fly:
         # Fit gfn to new reward function
         gfn_parametrization, trajectories_sampler_gfn = train_grid_gfn(config, gfn_parametrization,
                                                                        trajectories_sampler_gfn, reward_net=reward_net,
-                                                                       n_train_steps=3, verbose=1)
+                                                                       n_train_steps=5, verbose=1)
 
     average_loss_per_epoch = torch.mean(torch.stack(reward_losses_per_batch))
     pbar.set_description('{}'.format(average_loss_per_epoch))
@@ -101,8 +98,8 @@ def train(config, env):
 
     if epoch % config.experiment.full_gfn_retrain == 0:
       print('Fully retrain gfn...')
-      gfn_parametrization, trajectories_sampler_gfn = train_grid_gfn(config, None, reward_net=reward_net,
-                                                                     n_train_steps=300)
+      reward_net_checkpoint = copy.deepcopy(reward_net)
+      gfn_parametrization, trajectories_sampler_gfn = train_grid_gfn(config, None, reward_net=reward_net, n_train_steps=1000)
 
       all_rewards = reward_net(all_states.states_tensor.reshape(-1, config.env.ndim))
       Z = torch.sum(torch.exp(-all_rewards))
