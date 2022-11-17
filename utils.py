@@ -12,6 +12,7 @@ def render_distribution(distribution, box_height, ndim, file_name):
     Path('./results/').mkdir(parents=True, exist_ok=True)
     if ndim == 2:
         plt.matshow(distribution.T)
+        plt.title(file_name)
         plt.show()
     elif ndim == 3:
         X, Y, Z = np.mgrid[0:box_height:1, 0:box_height:1, 0:box_height:1]

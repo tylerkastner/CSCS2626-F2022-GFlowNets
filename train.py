@@ -20,7 +20,7 @@ import copy
 # TK: Hacky dataloader until we figure out batch size (works but not clean)
 def iterate_trajs(dataset, batch_size):
     random.shuffle(dataset)
-    return ((pos, dataset[pos:pos + batch_size]) for pos in range(0, len(dataset), batch_size))
+    return ((pos // batch_size, dataset[pos:pos + batch_size]) for pos in range(0, len(dataset), batch_size))
 
 
 def train(config, env):
