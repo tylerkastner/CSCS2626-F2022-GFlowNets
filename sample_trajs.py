@@ -3,6 +3,7 @@ import copy
 import yaml
 import munch
 import numpy as np
+from numpy.random import choice
 import random
 import matplotlib.pyplot as plt
 import torch
@@ -19,41 +20,6 @@ class Get_Traj():
         self.horizon = self.env.height
         self.ndim = self.env.ndim
         self._state = np.int32([0] * self.ndim)
-
-        # _, _, self.traj_rewards  = self.env.true_density()
-        # self.traj_rewards = np.append(self.traj_rewards,self.traj_rewards[-1])     
-    
-    """
-    TK: Rewrote this below
-    """
-    # def find_trajectories(self, end_pt):
-    #     # Find its index of point, like 45 means the index of point (6,6) in (8,8) matrix
-    #     pt_index = [end_pt//self.horizon, end_pt%self.horizon]
-
-    #     # initialize end_state
-    #     end_state = np.zeros([self.horizon * self.ndim], dtype=np.int8)
-    #     for j in range(self.ndim):
-    #         end_state[j*self.horizon+pt_index[j]] = 1
-
-    #     # tuple(current_state, action, state_idx, done)
-    #     trajectory = [(end_state, self.ndim, pt_index, True)]
-
-    #     init_state = np.zeros([self.horizon * self.ndim], dtype=np.int8)
-    #     for j in range(self.ndim):
-    #         init_state[self.horizon**j-1*(1-j)] = 1 # specific for two dimension
-
-    #     while not (trajectory[0][0] == init_state).all():
-    #         action = random.randint(0,self.ndim-1)
-    #         while trajectory[0][0][action*self.horizon] :
-    #             action = random.randint(0,self.ndim-1)
-    #         trajectory = self.get_prev_traj(trajectory,action)
-
-    #     s_a = []
-    #     for i in range(len(trajectory)):
-    #         s_a.extend((np.where(trajectory[i][0]==1)[0]%self.horizon).tolist())
-    #         s_a.append(trajectory[i][1])
-
-    #     return s_a
 
     def sample_trajectory(self, end_pt):
         state = self.env.reset(batch_shape=(1,))
@@ -102,29 +68,29 @@ class Get_Traj():
 
         return trajectory
 
-
-    # def get_prev_traj(self, traj:list[tuple[list,int]], action):
-    #     curr_state = copy.deepcopy(traj[0][0])
-    #     # if curr_state[self.horizon*action]:
-    #     #     return None
-    #     s = np.where(curr_state==1.0)[0]
-    #     idx  = s[(s>=action*self.horizon) & (s<(action+1)*self.horizon)][0]
-    #     curr_state[idx], curr_state[idx-1] = 0.0, 1.0
-    #     s[idx//self.horizon] = idx - 1
-    #     return [(curr_state, action, (np.mod(s, self.horizon)).tolist(), False)] + traj
-
 def generate_trajs(env, n=10000, filename='sample_trajs.pkl'):
     all_states = env.build_grid()
     all_rewards = env.reward(all_states)
 
     get_traj = Get_Traj(env)
 
-    # Hack to get argmax in 2d
-    optimal_states = (all_rewards == torch.max(all_rewards)).nonzero()
+    reward_dict = {}
+
+    for row_idx, row_tensor in enumerate(torch.exp(all_rewards)):
+        for col_idx, value in enumerate(row_tensor):
+            reward_dict[(row_idx, col_idx)] = float(value.numpy())
+
+    states = list(map(lambda tup: torch.tensor(tup), reward_dict.keys()))
+
+    # Workaround since we can only sample from finite list using choice
+    state_dict = { i: state for i, state in enumerate(states) }
+    probabilities = np.fromiter(reward_dict.values(), dtype=float) / sum(reward_dict.values())
+
+    endpoints = [state_dict[state_idx] for state_idx in choice(len(states), n, p=probabilities)]
 
     sample_trajs = []
     for i in range(n):
-        endpoint = random.choice(optimal_states)
+        endpoint = endpoints[i]
 
         traj = get_traj.sample_trajectory(end_pt=endpoint)
         sample_trajs.append(traj)
