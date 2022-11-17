@@ -27,9 +27,9 @@ def iterate_trajs(dataset, batch_size):
     return ((pos, dataset[pos:pos + batch_size]) for pos in range(0, len(dataset), batch_size))
 
 
-force_generate_dataset = False
+force_generate_dataset = True
 n_gt_trajs = 10000
-n_epochs=100
+n_epochs = 100
 def train(config, env):
   all_states = env.build_grid()
 
@@ -62,7 +62,7 @@ def train(config, env):
   pbar = tqdm.trange(n_epochs)
   for epoch in pbar:
     reward_losses_per_batch = []
-    for i_batch, batch in iterate_trajs(trajectories, batch_size=32):
+    for i_batch, batch in iterate_trajs(trajectories, batch_size=128):
       last_states = torch.cat([traj[-2] for traj in batch])
 
       trajectory_reward = reward_net(last_states)
