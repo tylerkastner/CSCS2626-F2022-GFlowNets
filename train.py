@@ -53,9 +53,10 @@ def train(config, env):
   gfn_z_per_epoch = []
   gt_z_per_epoch = []
 
-  n_gfn_sample = 200
-  print('Train gfn to initial distribution...')
-  gfn_parametrization, trajectories_sampler_gfn = train_grid_gfn(config, None, None, reward_net=reward_net, n_train_steps=200)
+  if config.experiment.use_gfn_z:
+    n_gfn_sample = 200
+    print('Train gfn to initial distribution...')
+    gfn_parametrization, trajectories_sampler_gfn = train_grid_gfn(config, None, reward_net=reward_net, n_train_steps=200)
   print('\nStart training reward net')
   pbar = tqdm.trange(config.experiment.n_epochs_reward_fn)
   for epoch in pbar:
@@ -98,7 +99,7 @@ def train(config, env):
     pbar.set_description('{}'.format(average_loss_per_epoch))
     reward_losses_per_epoch.append(average_loss_per_epoch)
 
-    if epoch % config.experiment.full_gfn_retrain == 0:
+    if config.experiment.use_gfn_z and epoch % config.experiment.full_gfn_retrain == 0:
       print('Fully retrain gfn...')
       reward_net_checkpoint = copy.deepcopy(reward_net)
       gfn_parametrization, trajectories_sampler_gfn = train_grid_gfn(config, None, None, reward_net=reward_net, n_train_steps=1000)
