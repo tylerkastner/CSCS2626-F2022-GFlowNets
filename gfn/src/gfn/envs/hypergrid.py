@@ -109,6 +109,23 @@ class HyperGrid(Env):
             s0 = env.s0
             sf = env.sf
 
+            # Instantiate class variables as instance variables so we can demote instance of
+            # HyperGridStates to an instance of States
+            def __init__(
+                self,
+                states_tensor: StatesTensor,
+                forward_masks: ForwardMasksTensor | None = None,
+                backward_masks: BackwardMasksTensor | None = None,
+            ):
+                self.state_shape = (env.ndim,)
+                self.s0 = env.s0
+                self.sf = env.sf
+                super().__init__(
+                    states_tensor,
+                    forward_masks,
+                    backward_masks,
+                )
+
             @classmethod
             def make_random_states_tensor(
                 cls, batch_shape: Tuple[int, ...]

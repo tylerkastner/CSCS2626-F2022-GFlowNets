@@ -1,15 +1,12 @@
 import re
-import copy
 import yaml
 import munch
 import numpy as np
 from numpy.random import choice
 import random
-import matplotlib.pyplot as plt
 import torch
-import dill as pickle
-
-from utils import render_distribution
+import pickle
+from typing import List
 
 from gfn.src.gfn.envs import HyperGrid
 from gfn.src.gfn.containers import States, Trajectories
@@ -68,7 +65,13 @@ class Get_Traj():
 
         return trajectory
 
-def generate_trajs(env, n=10000, filename='sample_trajs.pkl', boltzmann=True):
+def generate_trajs(
+    env,
+    n=10000,
+    states_filename='sample_trajs_states.pkl',
+    actions_filename='sample_trajs_actions.pkl',
+    boltzmann=True
+) -> None:
     all_states = env.build_grid()
     all_rewards = env.reward(all_states)
 
@@ -88,7 +91,6 @@ def generate_trajs(env, n=10000, filename='sample_trajs.pkl', boltzmann=True):
         probabilities = np.fromiter(reward_dict.values(), dtype=float) / sum(reward_dict.values())
 
         endpoints = [state_dict[state_idx] for state_idx in choice(len(states), n, p=probabilities)]
-
     else:
         optimal_states = (all_rewards == torch.max(all_rewards)).nonzero()
 
@@ -99,16 +101,37 @@ def generate_trajs(env, n=10000, filename='sample_trajs.pkl', boltzmann=True):
         endpoint = endpoints[i]
 
         traj = get_traj.sample_trajectory(end_pt=endpoint)
+        traj.states.__class__ = States
+
         sample_trajs.append(traj)
 
-    return sample_trajs
+    with open(states_filename, 'wb') as f:
+        pickle.dump([traj.states for traj in sample_trajs], f)
 
+    with open(actions_filename, 'wb') as f:
+        pickle.dump([traj.actions for traj in sample_trajs], f)
 
-    # TK: TODO: Deal with pickling - leave in ram for now
+def load_pickled_trajectories(env, states_filename='sample_trajs_states.pkl', actions_filename='sample_trajs_actions.pkl') -> List[Trajectories]:
+    with open(states_filename, 'rb') as f:
+        states_list = pickle.load(f)
 
-    # with open(filename, 'wb') as f:
-    #     pickle.dump(sample_trajs, f)
+        # Promote states to original class since we used States class for pickling
+        for states in states_list:
+            states.__class__ = env.make_States_class()
 
+    with open(actions_filename, 'rb') as f:
+        actions_list = pickle.load(f)
+
+    def make_traj_object(states, actions) -> Trajectories:
+        return Trajectories(
+            env=env,
+            states=states,
+            actions=actions,
+        )
+
+    trajectories = [make_traj_object(states, actions) for states, actions in zip(states_list, actions_list)]
+
+    return trajectories
 
 
 if __name__ == '__main__':
@@ -121,4 +144,6 @@ if __name__ == '__main__':
                     height=config.env.height,
                     R0=0.01)
 
-    generate_trajs(env=env)
+    generate_trajs(env=env, n=2)
+
+    load_pickled_trajectories(env=env)

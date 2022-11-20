@@ -18,3 +18,5 @@ experiment:
   retrain_on_the_fly: True
   force_generate_dataset: False
   n_gt_trajs: 10000
+  states_filename: 'sample_trajs_states.pkl'
+  actions_filename: 'sample_trajs_actions.pkl'

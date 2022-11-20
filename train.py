@@ -8,9 +8,8 @@ import random
 import time
 
 from torch.utils.data import TensorDataset, DataLoader
-import dill
 
-from sample_trajs import generate_trajs
+from sample_trajs import generate_trajs, load_pickled_trajectories
 from networks.reward_network import RewardNetwork
 from gfn.src.gfn.envs import HyperGrid
 from grid import train_grid_gfn
@@ -27,15 +26,14 @@ def train(config, env):
   all_states = env.build_grid()
 
   if config.experiment.force_generate_dataset:
-    trajectories = generate_trajs(env=env, n=config.experiment.n_gt_trajs)
-    with open("./trajectories.pkl", "wb") as dill_file:
-      trajectories = [traj.states.states_tensor for traj in trajectories]
-      dill.dump(trajectories, dill_file)
+    generate_trajs(env=env, n=config.experiment.n_gt_trajs)
+    trajectories = load_pickled_trajectories(env)
   else:
-    with open("./trajectories.pkl", "rb") as dill_file:
-      trajectories = dill.load(dill_file)
+    trajectories = load_pickled_trajectories(env=env,
+                                             states_filename=config.experiment.states_filename,
+                                             actions_filename=config.experiment.actions_filename)
 
-  last_states = torch.cat([traj[-2] for traj in trajectories])
+  last_states = torch.cat([traj.states.states_tensor[-2] for traj in trajectories])
   last_states_one_hot = torch.nn.functional.one_hot(last_states, num_classes=config.env.height)
   last_states_grid = (last_states_one_hot[:,0,:][:,:,None] * last_states_one_hot[:,1,:][:,None]).to(torch.float32)
   last_states_grid = last_states_grid.mean(0)
@@ -63,7 +61,7 @@ def train(config, env):
     reward_losses_per_batch = []
     for items in tqdm.tqdm(iterate_trajs(trajectories, batch_size=config.experiment.batch_size_reward_fn), total=len(trajectories)/config.experiment.batch_size_reward_fn, position=0, leave=True):
       i_batch, batch = items
-      last_states = torch.cat([traj[-2] for traj in batch])
+      last_states = torch.cat([traj.states.states_tensor[-2] for traj in batch])
 
       trajectory_reward = reward_net(last_states)
 
