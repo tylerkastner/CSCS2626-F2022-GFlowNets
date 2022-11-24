@@ -30,3 +30,8 @@ def render_distribution(distribution, box_height, ndim, file_name):
     else:
         print('Rendering for {} dimension not supported.'.format(ndim))
 
+
+
+def frequency_features(t, n_features):
+    features = [np.sin(t * 2 * np.pi * n) for n in range(1,n_features)]
+    return np.concatenate(features)

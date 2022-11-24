@@ -31,7 +31,8 @@ def train(config, env):
   else:
     trajectories = load_pickled_trajectories(env=env,
                                              states_filename=config.experiment.states_filename,
-                                             actions_filename=config.experiment.actions_filename)
+                                             actions_filename=config.experiment.actions_filename
+                                             )
 
   last_states = torch.cat([traj.states.states_tensor[-2] for traj in trajectories])
   last_states_one_hot = torch.nn.functional.one_hot(last_states, num_classes=config.env.height)
