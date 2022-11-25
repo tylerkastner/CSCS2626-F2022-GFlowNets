@@ -77,39 +77,47 @@ class UNet(nn.Module):
 
 
 class RewardNet(nn.Module):
-    def __init__(self, ):
+    def __init__(self, enc_chs=(1, 64, 128, 256)):
         super().__init__()
 
-        # Input Dimension: (nc) x 64 x 64
-        self.conv1 = nn.Conv2d(params['nc'], params['ndf'],
-            4, 2, 1, bias=False)
 
-        # Input Dimension: (ndf) x 32 x 32
-        self.conv2 = nn.Conv2d(params['ndf'], params['ndf']*2,
-            4, 2, 1, bias=False)
-        self.bn2 = nn.BatchNorm2d(params['ndf']*2)
+        self.layers = []
+        for i in range(len(enc_chs)-1):
+            self.layers.append(nn.Conv2d(enc_chs[i], enc_chs[i+1], 4, 2, 1, bias=True))
+            self.layers.append(nn.BatchNorm2d(enc_chs[i+1]))
+        self.layers.append(nn.LeakyReLU())
+        self.layers.append(nn.Flatten())
+        self.layers.append(nn.LazyLinear(1))
 
-        # Input Dimension: (ndf*2) x 16 x 16
-        self.conv3 = nn.Conv2d(params['ndf']*2, params['ndf']*4,
-            4, 2, 1, bias=False)
-        self.bn3 = nn.BatchNorm2d(params['ndf']*4)
-
-        # Input Dimension: (ndf*4) x 8 x 8
-        self.conv4 = nn.Conv2d(params['ndf']*4, params['ndf']*8,
-            4, 2, 1, bias=False)
-        self.bn4 = nn.BatchNorm2d(params['ndf']*8)
-
-        # Input Dimension: (ndf*8) x 4 x 4
-        self.conv5 = nn.Conv2d(params['ndf']*8, 1, 4, 1, 0, bias=False)
-
-        self.readout = nn.Linear()
+        # self.conv1 = nn.Conv2d(enc_chs[0], enc_chs[1],
+        #     4, 2, 1, bias=False)
+        #
+        # self.conv2 = nn.Conv2d(enc_chs[1], enc_chs[2],
+        #     4, 2, 1, bias=False)
+        # self.bn2 = nn.BatchNorm2d(enc_chs[2])
+        #
+        # self.conv3 = nn.Conv2d(enc_chs[2], enc_chs[3],
+        #     4, 2, 1, bias=False)
+        # self.bn3 = nn.BatchNorm2d(enc_chs[3])
+        #
+        # self.conv4 = nn.Conv2d(enc_chs[3], enc_chs[4],
+        #     4, 2, 1, bias=False)
+        # self.bn4 = nn.BatchNorm2d(enc_chs[4])
+        #
+        # self.flatten = nn.Flatten()
+        # self.readout = nn.Linear(enc_chs[4], 1)
 
     def forward(self, x):
-        x = F.leaky_relu(self.conv1(x), 0.2, True)
-        x = F.leaky_relu(self.bn2(self.conv2(x)), 0.2, True)
-        x = F.leaky_relu(self.bn3(self.conv3(x)), 0.2, True)
-        x = F.leaky_relu(self.bn4(self.conv4(x)), 0.2, True)
-        x = self.conv5(x)
+
+        for layer in self.layers:
+            x = layer(x)
+
+        # x = F.leaky_relu(self.conv1(x), 0.2, True)
+        # x = F.leaky_relu(self.bn2(self.conv2(x)), 0.2, True)
+        # x = F.leaky_relu(self.bn3(self.conv3(x)), 0.2, True)
+        # x = F.leaky_relu(self.bn4(self.conv4(x)), 0.2, True)
+        # x = self.flatten(x)
+        # x = self.readout(x)
 
         return x
 
@@ -121,4 +129,7 @@ if __name__ == '__main__':
     traj = next(iter(train_dataloader))
 
     unet = UNet(enc_chs=(1, 64, 128, 256), dec_chs=(256, 128, 64), num_class=2)
-    print(unet(traj[:,0:1]).shape)
+    print(unet(traj[:, 0:1]).shape)
+
+    reward_net = RewardNet()
+    print(reward_net(traj[:, 0:1]))

@@ -46,7 +46,7 @@ if show_data:
 
 
 class MNISTTrajLoader(Dataset):
-    def __init__(self, img_dir='./data/MNIST/0/', n_noise_steps=50, eps_noise_background=1.0, noise_strategy='uniform', beta=0.1, transform=None, target_transform=None):
+    def __init__(self, img_dir='./data/MNIST/0/', n_noise_steps=50, noise_strategy='uniform', eps_noise_background=1.0, beta=0.1, transform=None, target_transform=None):
         self.img_dir = img_dir
         self.transform = transform
         self.target_transform = target_transform
@@ -54,6 +54,8 @@ class MNISTTrajLoader(Dataset):
         self.eps_background_noise = eps_noise_background / self.n_noising_steps
         self.noise_strategy = noise_strategy
         self.beta = beta
+        self.dx = 1 / self.n_noising_steps
+        self.time_index = np.arange(0,self.n_noising_steps, 1)
 
     def __len__(self):
         file_names = os.listdir(self.img_dir)
@@ -78,15 +80,28 @@ class MNISTTrajLoader(Dataset):
 
             for i in range(1, self.n_noising_steps):
                 image_trajectory[i] = noise[i-1] + np.sqrt(1- self.beta) * image_trajectory[i-1]
+        elif self.noise_strategy == 'discrete_uniform':
+            img = img.squeeze()
+            n_target_steps = self.n_noising_steps * img
+            n_target_steps = np.array(np.round(n_target_steps,).reshape(-1), dtype=np.int8)
+            noise = np.zeros((self.n_noising_steps, img.shape[0], img.shape[1])).reshape(self.n_noising_steps, -1)
+            for i in range(noise.shape[-1]):
+                idx = np.random.choice(self.n_noising_steps, size=(n_target_steps[i]), replace=False)
+                noise[idx, i] = 1
+            noise = noise.reshape(self.n_noising_steps, img.shape[0], img.shape[1])
+
+            image_trajectory = np.cumsum(noise, axis=0) * self.dx
 
 
-        return image_trajectory
+
+
+        return image_trajectory, noise
 
 if __name__ == '__main__':
-    custom_mnist_dataset = MNISTTrajLoader(eps_noise_background=0.1, noise_strategy='gaussian', beta=0.15)
+    custom_mnist_dataset = MNISTTrajLoader(eps_noise_background=0.1, noise_strategy='discrete_uniform', beta=0.15)
     train_dataloader = DataLoader(custom_mnist_dataset, batch_size=64, shuffle=True)
 
-    traj = next(iter(train_dataloader))
+    traj, actions = next(iter(train_dataloader))
 
     first_traj = traj[0]
     for i, img in enumerate(first_traj):
