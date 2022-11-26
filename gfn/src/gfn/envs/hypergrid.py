@@ -189,14 +189,13 @@ class HyperGrid(Env):
     def get_states_indices(self, states: States) -> TensorLong:
         states_raw = states.states_tensor
 
-        canonical_base = self.height ** torch.arange(
-            self.ndim - 1, -1, -1, device=states_raw.device
-        )
+        canonical_base = self.height ** torch.arange(self.ndim - 1, -1, -1, device=states_raw.device)
         indices = (canonical_base * states_raw).sum(-1).long()
         return indices
 
     def get_terminating_states_indices(self, states: States) -> TensorLong:
         return self.get_states_indices(states)
+
 
     @property
     def n_states(self) -> int:
@@ -209,10 +208,7 @@ class HyperGrid(Env):
     @property
     def true_dist_pmf(self) -> torch.Tensor:
         all_states = self.all_states
-        assert torch.all(
-            self.get_states_indices(all_states)
-            == torch.arange(self.n_states, device=self.device)
-        )
+        assert torch.all(self.get_states_indices(all_states)== torch.arange(self.n_states, device=self.device))
         true_dist = self.reward(all_states)
         true_dist /= true_dist.sum()
         return true_dist
@@ -251,3 +247,4 @@ class HyperGrid(Env):
     @property
     def terminating_states(self) -> States:
         return self.all_states
+

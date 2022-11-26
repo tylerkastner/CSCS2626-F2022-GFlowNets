@@ -51,7 +51,7 @@ class MNISTTrajLoader(Dataset):
         self.transform = transform
         self.target_transform = target_transform
         self.n_noising_steps = n_noise_steps
-        self.eps_background_noise = eps_noise_background / self.n_noising_steps
+        self.eps_background_noise = eps_noise_background
         self.noise_strategy = noise_strategy
         self.beta = beta
         self.dx = 1 / self.n_noising_steps
@@ -69,7 +69,7 @@ class MNISTTrajLoader(Dataset):
             noise = np.random.uniform(0, 1, size=(self.n_noising_steps, img.shape[0], img.shape[1]))
             noise_length = noise.sum(0, keepdims=True)
             noise = noise / noise_length * img
-            background_noise = np.random.uniform(0, self.eps_background_noise, size=(self.n_noising_steps, img.shape[0], img.shape[1]))
+            background_noise = np.random.uniform(0, self.eps_background_noise / self.n_noising_steps, size=(self.n_noising_steps, img.shape[0], img.shape[1]))
 
             image_trajectory = np.cumsum(noise, axis=0)
             background_noise_trajectory = np.cumsum(background_noise, axis=0)
@@ -87,6 +87,12 @@ class MNISTTrajLoader(Dataset):
             noise = np.zeros((self.n_noising_steps, img.shape[0], img.shape[1])).reshape(self.n_noising_steps, -1)
             for i in range(noise.shape[-1]):
                 idx = np.random.choice(self.n_noising_steps, size=(n_target_steps[i]), replace=False)
+
+                background_noise_level = int(self.n_noising_steps * self.eps_background_noise)
+                if background_noise_level > 0:
+                    background_noise_level = np.random.randint(0, background_noise_level)
+                idx_background_noise = np.random.choice(self.n_noising_steps, size=(background_noise_level), replace=False)
+                idx = np.union1d(idx, idx_background_noise)
                 noise[idx, i] = 1
             noise = noise.reshape(self.n_noising_steps, img.shape[0], img.shape[1])
 
@@ -105,6 +111,7 @@ if __name__ == '__main__':
 
     first_traj = traj[0]
     for i, img in enumerate(first_traj):
-        if i % 1 == 0:
+        print(i)
+        if i % 5 == 0:
             plt.imshow(img, vmin=0, vmax=1)
             plt.show()

@@ -80,16 +80,10 @@ class TrajectoryBasedTerminatingStateDistribution(TerminatingStatesDistribution)
     Represents a distribution over final states.
     """
 
-    def __init__(
-        self, trajectory_distribution: EmpiricalTrajectoryDistribution
-    ) -> None:
+    def __init__(self, trajectory_distribution: EmpiricalTrajectoryDistribution) -> None:
         self.trajectory_distribution = trajectory_distribution
-        self.states_to_indices = (
-            self.trajectory_distribution.trajectories.env.get_terminating_states_indices
-        )
-        self.env_n_terminating_states = (
-            self.trajectory_distribution.trajectories.env.n_terminating_states
-        )
+        self.states_to_indices = (self.trajectory_distribution.trajectories.env.get_terminating_states_indices)
+        self.env_n_terminating_states = (self.trajectory_distribution.trajectories.env.n_terminating_states)
 
     def sample(self, n_final_states: Optional[int] = None) -> States:
         """
@@ -105,8 +99,5 @@ class TrajectoryBasedTerminatingStateDistribution(TerminatingStatesDistribution)
         samples = self.sample()
         samples_indices = self.states_to_indices(samples).cpu().numpy().tolist()
         counter = Counter(samples_indices)
-        counter_list = [
-            counter[state_idx] if state_idx in counter else 0
-            for state_idx in range(self.env_n_terminating_states)
-        ]
+        counter_list = [counter[state_idx] if state_idx in counter else 0 for state_idx in range(self.env_n_terminating_states)]
         return torch.tensor(counter_list, dtype=torch.float) / len(samples_indices)

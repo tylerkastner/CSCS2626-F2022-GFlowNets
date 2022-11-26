@@ -35,12 +35,8 @@ class Parametrization(ABC):
     def Pi(self, env: Env, n_samples: int, **kwargs) -> TrajectoryDistribution:
         pass
 
-    def P_T(
-        self, env: Env, n_samples: int, **kwargs
-    ) -> TrajectoryBasedTerminatingStateDistribution:
-        return TrajectoryBasedTerminatingStateDistribution(
-            self.Pi(env, n_samples, **kwargs)
-        )
+    def P_T(self, env: Env, n_samples: int, **kwargs) -> TrajectoryBasedTerminatingStateDistribution:
+        return TrajectoryBasedTerminatingStateDistribution(self.Pi(env, n_samples, **kwargs))
 
     @property
     def parameters(self) -> dict:

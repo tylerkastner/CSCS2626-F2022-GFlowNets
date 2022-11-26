@@ -7,22 +7,18 @@ from gfn.src.gfn.containers import States
 from gfn.src.gfn.envs import Env
 from gfn.src.gfn.envs.preprocessors.base import EnumPreprocessor
 from gfn.src.gfn.modules import GFNModule, NeuralNet, Tabular, Uniform, ZeroGFNModule
+from backbones.mnist_simple_unet import UNet
 
 # Typing
 OutputTensor = TensorType["batch_shape", "output_dim", float]
 
 
 class FunctionEstimator(ABC):
-    def __init__(
-        self,
-        env: Env,
-        module: Optional[GFNModule] = None,
-        output_dim: Optional[int] = None,
-        module_name: Optional[
-            Literal["NeuralNet", "Uniform", "Tabular", "Zero"]
-        ] = None,
-        **nn_kwargs,
-    ) -> None:
+    def __init__(self, env: Env, module: Optional[GFNModule] = None, output_dim: Optional[int] = None,
+                 module_name: Optional[Literal["NeuralNet", "Uniform", "Tabular", "Zero", "UNet"]] = None,
+                 **nn_kwargs,
+                 ) -> None:
+
         """Base class for function estimators. Either module or (module_name, output_dim) must be provided.
 
         Args:
@@ -38,22 +34,18 @@ class FunctionEstimator(ABC):
             if module_name == "NeuralNet":
                 assert len(env.preprocessor.output_shape) == 1
                 input_dim = env.preprocessor.output_shape[0]
-                module = NeuralNet(
-                    input_dim=input_dim,
-                    output_dim=output_dim,
-                    **nn_kwargs,
-                )
+                module = NeuralNet(input_dim=input_dim, output_dim=output_dim, **nn_kwargs,)
             elif module_name == "Uniform":
                 module = Uniform(output_dim=output_dim)
             elif module_name == "Zero":
                 module = ZeroGFNModule(output_dim=output_dim)
             elif module_name == "Tabular":
-                module = Tabular(
-                    n_states=env.n_states,
-                    output_dim=output_dim,
-                )
+                module = Tabular(n_states=env.n_states, output_dim=output_dim,)
+            elif module_name == 'UNet':
+                module = UNet(enc_chs=nn_kwargs['enc_chs'], dec_chs=nn_kwargs['dec_chs'], num_class=nn_kwargs['num_class'])
             else:
                 raise ValueError(f"Unknown module_name {module_name}")
+
         self.module = module
         if isinstance(self.module, Tabular):
             self.preprocessor = EnumPreprocessor(env.get_states_indices)
@@ -74,83 +66,49 @@ class FunctionEstimator(ABC):
 
 
 class LogEdgeFlowEstimator(FunctionEstimator):
-    def __init__(
-        self,
-        env: Env,
-        module: Optional[GFNModule] = None,
-        module_name: Optional[
-            Literal["NeuralNet", "Uniform", "Tabular", "Zero"]
-        ] = None,
-        **nn_kwargs,
-    ) -> None:
+    def __init__(self, env: Env, module: Optional[GFNModule] = None,
+                 module_name: Optional[Literal["NeuralNet", "Uniform", "Tabular", "Zero"]] = None,
+                 **nn_kwargs,
+                 ) -> None:
+
         if module is not None:
             assert module.output_dim == env.n_actions
-        super().__init__(
-            env,
-            module=module,
-            output_dim=env.n_actions,
-            module_name=module_name,
-            **nn_kwargs,
-        )
+
+        super().__init__(env, module=module, output_dim=env.n_actions, module_name=module_name, **nn_kwargs,)
 
 
 class LogStateFlowEstimator(FunctionEstimator):
-    def __init__(
-        self,
-        env: Env,
-        module: Optional[GFNModule] = None,
-        module_name: Optional[
-            Literal["NeuralNet", "Uniform", "Tabular", "Zero"]
-        ] = None,
-        **nn_kwargs,
-    ):
+    def __init__(self, env: Env, module: Optional[GFNModule] = None,
+                 module_name: Optional[Literal["NeuralNet", "Uniform", "Tabular", "Zero"]] = None,
+                 **nn_kwargs,
+                 ):
+
         if module is not None:
             assert module.output_dim == 1
-        super().__init__(
-            env, module=module, output_dim=1, module_name=module_name, **nn_kwargs
-        )
+        super().__init__(env, module=module, output_dim=1, module_name=module_name, **nn_kwargs)
 
 
 class LogitPFEstimator(FunctionEstimator):
-    def __init__(
-        self,
-        env: Env,
-        module: Optional[GFNModule] = None,
-        module_name: Optional[
-            Literal["NeuralNet", "Uniform", "Tabular", "Zero"]
-        ] = None,
-        **nn_kwargs,
-    ):
+    def __init__(self, env: Env, module: Optional[GFNModule] = None,
+                 module_name: Optional[Literal["NeuralNet", "Uniform", "Tabular", "Zero","UNet"]] = None,
+                 **nn_kwargs,
+                 ):
+
         if module is not None:
             assert module.output_dim == env.n_actions
-        super().__init__(
-            env,
-            module=module,
-            output_dim=env.n_actions,
-            module_name=module_name,
-            **nn_kwargs,
-        )
+
+        super().__init__(env, module=module, output_dim=env.n_actions, module_name=module_name, **nn_kwargs,)
 
 
 class LogitPBEstimator(FunctionEstimator):
-    def __init__(
-        self,
-        env: Env,
-        module: Optional[GFNModule] = None,
-        module_name: Optional[
-            Literal["NeuralNet", "Uniform", "Tabular", "Zero"]
-        ] = None,
-        **nn_kwargs,
-    ):
+    def __init__(self, env: Env, module: Optional[GFNModule] = None,
+                 module_name: Optional[Literal["NeuralNet", "Uniform", "Tabular", "Zero", "UNet"]] = None,
+                 **nn_kwargs,
+                 ):
+
         if module is not None:
             assert module.output_dim == env.n_actions - 1
-        super().__init__(
-            env,
-            module=module,
-            output_dim=env.n_actions - 1,
-            module_name=module_name,
-            **nn_kwargs,
-        )
+        super().__init__(env, module=module, output_dim=env.n_actions - 1, module_name=module_name, **nn_kwargs,)
 
 
 class LogZEstimator:

@@ -44,10 +44,7 @@ class DiscreteActionsSampler:
     For Discrete environments.
     """
 
-    def __init__(
-        self,
-        estimator: LogitPFEstimator | LogEdgeFlowEstimator,
-        temperature: float = 1.0,
+    def __init__(self, estimator: LogitPFEstimator | LogEdgeFlowEstimator, temperature: float = 1.0,
         sf_bias: float = 0.0,
         epsilon: float = 0.0,
     ) -> None:
@@ -93,10 +90,7 @@ class DiscreteActionsSampler:
         logits[~states.forward_masks] = -float("inf")
         return logits
 
-    def get_probs(
-        self,
-        states: States,
-    ) -> Tensor2D:
+    def get_probs(self, states: States,) -> Tensor2D:
         """
         Returns:
             The probabilities of each action in each state in the batch.

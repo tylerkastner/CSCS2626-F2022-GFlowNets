@@ -61,9 +61,7 @@ class NeuralNet(nn.Module, GFNModule):
         self._output_dim = output_dim
 
         if torso is None:
-            assert (
-                n_hidden_layers is not None and n_hidden_layers >= 0
-            ), "n_hidden_layers must be >= 0"
+            assert (n_hidden_layers is not None and n_hidden_layers >= 0), "n_hidden_layers must be >= 0"
             assert activation_fn is not None, "activation_fn must be provided"
             activation = nn.ReLU if activation_fn == "relu" else nn.Tanh
             self.torso = [nn.Linear(input_dim, hidden_dim), activation()]
