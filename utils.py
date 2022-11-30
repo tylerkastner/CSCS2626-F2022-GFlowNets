@@ -4,7 +4,7 @@ import plotly.graph_objects as go
 import numpy as np
 from pathlib import Path
 
-def render_distribution(distribution, box_height, ndim, file_name):
+def render_distribution(distribution, box_height, ndim, file_name, iso=[0.01, 0.8]):
     '''
         Renders either the given distribution or the env grountruth distribution
     '''
@@ -21,8 +21,8 @@ def render_distribution(distribution, box_height, ndim, file_name):
             y=Y.flatten(),
             z=Z.flatten(),
             value=distribution.flatten(),
-            isomin=0.01,
-            isomax=0.8,
+            isomin=iso[0],
+            isomax=iso[1],
             opacity=0.1,  # needs to be small to see through all surfaces
             surface_count=20,  # needs to be a large number for good volume rendering
         ))

@@ -13,8 +13,12 @@ from sample_trajs import generate_trajs, load_pickled_trajectories
 from networks.reward_network import RewardNetwork
 from gfn.src.gfn.envs import HyperGrid
 from grid import train_grid_gfn
+from utils import render_distribution
 import matplotlib.pyplot as plt
 import copy
+import itertools
+
+tf = lambda x: torch.FloatTensor(x)
 
 # TK: Hacky dataloader until we figure out batch size (works but not clean)
 def iterate_trajs(dataset, batch_size):
@@ -25,22 +29,42 @@ def iterate_trajs(dataset, batch_size):
 def train(config, env):
   all_states = env.build_grid()
 
+  states_filename = 'sample_trajs_states_{}d.pkl'.format(env.ndim)
+  actions_filename = 'sample_trajs_actions_{}d.pkl'.format(env.ndim)
   if config.experiment.force_generate_dataset:
-    generate_trajs(env=env, n=config.experiment.n_gt_trajs)
-    trajectories = load_pickled_trajectories(env)
+    generate_trajs(env=env,
+                   n=100000,
+                   states_filename=states_filename,
+                   actions_filename=actions_filename
+                   )
+    trajectories = load_pickled_trajectories(env,
+                                             states_filename=states_filename,
+                                             actions_filename=actions_filename
+                                             )
+                                             
   else:
     trajectories = load_pickled_trajectories(env=env,
-                                             states_filename=config.experiment.states_filename,
-                                             actions_filename=config.experiment.actions_filename
+                                             states_filename=states_filename,
+                                             actions_filename=actions_filename
                                              )
 
   last_states = torch.cat([traj.states.states_tensor[-2] for traj in trajectories])
   last_states_one_hot = torch.nn.functional.one_hot(last_states, num_classes=config.env.height)
-  last_states_grid = (last_states_one_hot[:,0,:][:,:,None] * last_states_one_hot[:,1,:][:,None]).to(torch.float32)
-  last_states_grid = last_states_grid.mean(0)
-  plt.matshow(last_states_grid)
-  plt.title('Behavior distribution')
-  plt.show()
+  if env.ndim == 2:
+    last_states_grid = (last_states_one_hot[:,0,:][:,:,None] * last_states_one_hot[:,1,:][:,None]).to(torch.float32)
+    last_states_grid = last_states_grid.mean(0)
+    render_distribution(last_states_grid, env.height, env.ndim)
+
+  elif env.ndim == 3:
+    last_states_grid = (last_states_one_hot[:,0,:][:,:,None,None] *\
+                        last_states_one_hot[:,1,:][:,None,:,None] *\
+                        last_states_one_hot[:,2,:][:,None,None,:]).to(torch.float32)
+    last_states_grid = last_states_grid.mean(0)
+    render_distribution(env.reward(all_states), env.height, env.ndim, 'true_reward_3d_{}'.format(env.height))
+    render_distribution(last_states_grid, env.height, env.ndim, 'dataset_trajs_samples_3d_{}'.format(env.height), iso=[1e-5,0.002])
+
+  elif env.ndim >= 4:
+    print("Higher Dimension Visiualization needs to be developed.")
 
 
   reward_net = RewardNetwork(state_dim=env.ndim)
@@ -122,6 +146,7 @@ if __name__ == '__main__':
   with open("config.yml", "r") as ymlfile:
     config = yaml.safe_load(ymlfile)
   config = munch.munchify(config)
+  config.env.nactions = config.env.ndim + 1
 
   env = HyperGrid(ndim=config.env.ndim,
                   height=config.env.height,

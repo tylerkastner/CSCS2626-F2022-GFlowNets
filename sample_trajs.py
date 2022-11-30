@@ -1,15 +1,20 @@
 import re
 import yaml
+import tqdm
 import munch
 import numpy as np
 from numpy.random import choice
 import random
 import torch
+from torchtyping import TensorType
 import pickle
 from typing import List
+import itertools
 
 from gfn.src.gfn.envs import HyperGrid
 from gfn.src.gfn.containers import States, Trajectories
+
+ActionsTensor = TensorType["action", torch.float]
 
 class Get_Traj():
     def __init__(self, env):
@@ -21,7 +26,7 @@ class Get_Traj():
     def sample_trajectory(self, end_pt):
         state = self.env.reset(batch_shape=(1,))
 
-        trajectory_states: List[StatesTensor] = [state.states_tensor]
+        trajectory_states: List[States.StatesTensor] = [state.states_tensor]
         trajectory_actions: List[ActionsTensor] = []
 
         traj_done = False
@@ -34,17 +39,13 @@ class Get_Traj():
             # If we are at the end state our only possible action is the `end` action
             if torch.equal(current_state, end_pt):
                 traj_done = True
+                possible_actions = [self.ndim]
 
-                # TK: TODO: change this if we want ndim > 2
-                possible_actions = [2]
-
-            # If we can go left
-            if current_state[0] < end_pt[0]:
-                possible_actions.append(0)
-
-            # If we can go left
-            if current_state[1] < end_pt[1]:
-                possible_actions.append(1)
+            # current_state do not reach the end state
+            else:
+                for i in range(self.ndim):
+                    if current_state[i] < end_pt[i]:
+                        possible_actions.append(i)
 
             action = torch.tensor(random.choice(possible_actions))
             trajectory_actions.append(torch.unsqueeze(action, 0))
@@ -80,9 +81,10 @@ def generate_trajs(
     if boltzmann:
         reward_dict = {}
 
-        for row_idx, row_tensor in enumerate(torch.exp(all_rewards)):
-            for col_idx, value in enumerate(row_tensor):
-                reward_dict[(row_idx, col_idx)] = float(value.numpy())
+        keys_ranges = [range(env.height)] * env.ndim
+        exp_rewards = torch.exp(all_rewards)
+        for key in itertools.product(*keys_ranges):
+            reward_dict[key] = float(exp_rewards[key].numpy())
 
         states = list(map(lambda tup: torch.tensor(tup), reward_dict.keys()))
 
@@ -97,7 +99,7 @@ def generate_trajs(
         endpoints = [random.choice(optimal_states) for _ in range(n)]
 
     sample_trajs = []
-    for i in range(n):
+    for i in tqdm.tqdm(range(n), ascii=True, desc='Trajectory Generating:'):
         endpoint = endpoints[i]
 
         traj = get_traj.sample_trajectory(end_pt=endpoint)
@@ -134,16 +136,16 @@ def load_pickled_trajectories(env, states_filename='sample_trajs_states.pkl', ac
     return trajectories
 
 
-if __name__ == '__main__':
+# if __name__ == '__main__':
 
-    with open("config.yml", "r") as ymlfile:
-        config = yaml.safe_load(ymlfile)
-    config = munch.munchify(config)
+#     with open("config.yml", "r") as ymlfile:
+#         config = yaml.safe_load(ymlfile)
+#     config = munch.munchify(config)
 
-    env = HyperGrid(ndim=config.env.ndim,
-                    height=config.env.height,
-                    R0=0.01)
+#     env = HyperGrid(ndim=config.env.ndim,
+#                     height=config.env.height,
+#                     R0=0.01)
 
-    generate_trajs(env=env, n=2)
+#     generate_trajs(env=env, n=2)
 
-    load_pickled_trajectories(env=env)
+#     load_pickled_trajectories(env=env)
