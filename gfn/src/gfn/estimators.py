@@ -29,8 +29,8 @@ class FunctionEstimator(ABC):
             **nn_kwargs: Keyword arguments to pass to the module, if module_name is NeuralNet.
         """
         self.env = env
-        if module is None:
-            assert module_name is not None and output_dim is not None
+        assert module_name is not None
+        if module is None and output_dim is not None:
             if module_name == "NeuralNet":
                 assert len(env.preprocessor.output_shape) == 1
                 input_dim = env.preprocessor.output_shape[0]
@@ -41,10 +41,10 @@ class FunctionEstimator(ABC):
                 module = ZeroGFNModule(output_dim=output_dim)
             elif module_name == "Tabular":
                 module = Tabular(n_states=env.n_states, output_dim=output_dim,)
-            elif module_name == 'UNet':
-                module = UNet(enc_chs=nn_kwargs['enc_chs'], dec_chs=nn_kwargs['dec_chs'], num_class=nn_kwargs['num_class'])
             else:
                 raise ValueError(f"Unknown module_name {module_name}")
+        elif module_name == 'UNet':
+            module = UNet(enc_chs=nn_kwargs['nn_kwargs']['enc_chs'], dec_chs=nn_kwargs['nn_kwargs']['dec_chs'], num_class=nn_kwargs['nn_kwargs']['num_class']).to('cuda:0')
 
         self.module = module
         if isinstance(self.module, Tabular):
@@ -103,12 +103,16 @@ class LogitPFEstimator(FunctionEstimator):
 class LogitPBEstimator(FunctionEstimator):
     def __init__(self, env: Env, module: Optional[GFNModule] = None,
                  module_name: Optional[Literal["NeuralNet", "Uniform", "Tabular", "Zero", "UNet"]] = None,
+                 subtract_exit_actions: bool = True,
                  **nn_kwargs,
                  ):
 
-        if module is not None:
-            assert module.output_dim == env.n_actions - 1
-        super().__init__(env, module=module, output_dim=env.n_actions - 1, module_name=module_name, **nn_kwargs,)
+        if subtract_exit_actions:
+            if module is not None:
+                assert module.output_dim == env.n_actions - 1
+            super().__init__(env, module=module, output_dim=env.n_actions - 1, module_name=module_name, **nn_kwargs,)
+        else:
+            super().__init__(env, module=module, output_dim=env.n_actions, module_name=module_name, **nn_kwargs, )
 
 
 class LogZEstimator:

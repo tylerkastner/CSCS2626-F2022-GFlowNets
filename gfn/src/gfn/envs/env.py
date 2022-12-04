@@ -90,7 +90,7 @@ class Env(ABC):
         if isinstance(self.action_space, Discrete):
             return self.action_space.n
         else:
-            raise NotImplementedError("Only discrete action spaces are supported")
+            return None
 
     @property
     def n_states(self) -> int:
@@ -148,11 +148,7 @@ class Env(ABC):
             batch_shape = (batch_shape,)
         return self.States.from_batch_shape(batch_shape=batch_shape, random=random)
 
-    def step(
-        self,
-        states: States,
-        actions: TensorLong,
-    ) -> States:
+    def step(self, states: States, actions: TensorLong, ) -> States:
         """Function that takes a batch of states and actions and returns a batch of next
         states and a boolean tensor indicating sink states in the new batch."""
         new_states = deepcopy(states)
@@ -160,15 +156,11 @@ class Env(ABC):
         valid_actions = actions[valid_states]
 
         if new_states.forward_masks is not None:
-            new_forward_masks, _ = correct_cast(
-                new_states.forward_masks, new_states.backward_masks
-            )
-            valid_states_masks = new_forward_masks[valid_states]
-            valid_actions_bool = all(
-                torch.gather(valid_states_masks, 1, valid_actions.unsqueeze(1))
-            )
-            if not valid_actions_bool:
-                raise NonValidActionsError("Actions are not valid")
+            new_forward_masks, _ = correct_cast(new_states.forward_masks, new_states.backward_masks)
+            # valid_states_masks = new_forward_masks[valid_states]
+            # valid_actions_bool = all(torch.gather(valid_states_masks, 1, valid_actions.unsqueeze(1)))
+            # if not valid_actions_bool:
+            #     raise NonValidActionsError("Actions are not valid")
 
         new_sink_states = self.is_exit_actions(actions)
         new_states.states_tensor[new_sink_states] = self.sf

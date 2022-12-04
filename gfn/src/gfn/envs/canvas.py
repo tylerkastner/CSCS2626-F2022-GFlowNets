@@ -26,7 +26,7 @@ class Canvas(Env):
         self.reward_net = reward_net
         self.n_denoising_steps = n_denoising_steps
         self.dx = 1 / n_denoising_steps
-        self.exit_action = torch.zeros((canvas_channels, canvas_size, canvas_size))
+        self.exit_action = torch.zeros((canvas_channels, canvas_size, canvas_size)).to(device_str)
 
         s0 = torch.zeros((self.canvas_channels, self.canvas_size, self.canvas_size), dtype=torch.float32, device=torch.device(device_str))
         sf = torch.full((self.canvas_channels, self.canvas_size, self.canvas_size), fill_value=-1.0, dtype=torch.float32, device=torch.device(device_str))
@@ -77,13 +77,13 @@ class Canvas(Env):
                 self.forward_masks = cast(ForwardMasksTensor, self.forward_masks)
                 self.backward_masks = cast(BackwardMasksTensor, self.backward_masks)
 
-                self.forward_masks[..., :-1] = self.states_tensor + self.dx <= 1.0
+                self.forward_masks = self.states_tensor + env.dx <= 1.0
                 self.backward_masks = self.states_tensor <= 0.0
 
         return CanvasStates
 
     def is_exit_actions(self, actions: TensorLong) -> TensorBool:
-        return torch.all(torch.all(actions == self.exit_action, dim=-1), dim=-1)
+        return torch.all(torch.all(actions == self.exit_action, dim=-1), dim=-1).squeeze()
 
     def maskless_step(self, states: StatesTensor, actions: TensorLong) -> None:
         states.add_(actions * self.dx)

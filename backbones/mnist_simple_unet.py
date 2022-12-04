@@ -60,6 +60,8 @@ class UNet(nn.Module):
         super().__init__()
         self.encoder = Encoder(enc_chs)
         self.decoder = Decoder(dec_chs)
+        # if num_class == 2:
+        #     num_class = 1
         self.head = nn.Conv2d(dec_chs[-1], num_class, 1)
         self.retain_dim = retain_dim
         self.out_sz = out_sz
@@ -87,7 +89,7 @@ class RewardNet(nn.Module):
             self.layers.append(nn.BatchNorm2d(enc_chs[i+1]))
         self.layers.append(nn.LeakyReLU())
         self.layers.append(nn.Flatten())
-        self.layers.append(nn.LazyLinear(1))
+        self.layers.append(nn.LazyLinear(1).to('cuda'))
 
         # self.conv1 = nn.Conv2d(enc_chs[0], enc_chs[1],
         #     4, 2, 1, bias=False)

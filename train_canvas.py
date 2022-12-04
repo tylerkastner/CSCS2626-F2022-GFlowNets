@@ -6,26 +6,26 @@ import munch
 from gfn.src.gfn.envs import Canvas
 from gfn.src.gfn.estimators import LogitPFEstimator, LogitPBEstimator, LogZEstimator
 from gfn.src.gfn.losses import TBParametrization, TrajectoryBalance
-from gfn.src.gfn.samplers import DiscreteActionsSampler, TrajectoriesSampler
+from gfn.src.gfn.samplers import MultiBinaryActionsSampler, TrajectoriesSampler
 from gfn.src.gfn.containers.replay_buffer import ReplayBuffer
 from gfn.src.gfn.utils import trajectories_to_training_samples, validate
-
+from backbones.mnist_simple_unet import RewardNet
 
 
 
 def train_grid_gfn(config, gfn_parametrization=None, trajectories_sampler=None, reward_net=None, gt_trajectories=None, n_train_steps=1000, verbose=0):
 
-    env = Canvas(n_denoising_steps=config.env.n_denoising_steps, reward_net=reward_net)
+    env = Canvas(n_denoising_steps=config.env.n_denoising_steps, reward_net=reward_net.to('cuda'))
 
     if gfn_parametrization is None:
-        nn_kwargs = {'enc_chs': (1, 64, 128, 256), 'dec_chs': (256, 128, 64), 'num_class': 2}
+        nn_kwargs = {'enc_chs': (1, 64, 128, 256), 'dec_chs': (256, 128, 64), 'num_class': 1}
         logit_PF = LogitPFEstimator(env=env, module_name='UNet', nn_kwargs=nn_kwargs)
-        logit_PB = LogitPBEstimator(env=env, module_name='UNet', nn_kwargs=nn_kwargs)
+        logit_PB = LogitPBEstimator(env=env, module_name='UNet', subtract_exit_actions=False, nn_kwargs=nn_kwargs)
         logZ = LogZEstimator(torch.tensor(0.))
 
         parametrization = TBParametrization(logit_PF, logit_PB, logZ)
 
-        actions_sampler = DiscreteActionsSampler(estimator=logit_PF)
+        actions_sampler = MultiBinaryActionsSampler(estimator=logit_PF)
         trajectories_sampler = TrajectoriesSampler(env=env, actions_sampler=actions_sampler)
     else:
         parametrization = gfn_parametrization
@@ -33,9 +33,7 @@ def train_grid_gfn(config, gfn_parametrization=None, trajectories_sampler=None, 
 
     loss_fn = TrajectoryBalance(parametrization=parametrization)
 
-    visited_terminating_states = (
-        env.States.from_batch_shape((0,)) if not config.experiment.resample_for_validation else None
-    )
+    visited_terminating_states = (env.States.from_batch_shape((0,)) if not config.experiment.resample_for_validation else None)
     if config.experiment.use_replay_buffer > 0:
         replay_buffer = ReplayBuffer(env, loss_fn, capacity=config.experiment.replay_buffer_size)
         if gt_trajectories is not None:
@@ -82,7 +80,9 @@ def train_grid_gfn(config, gfn_parametrization=None, trajectories_sampler=None, 
     return parametrization, trajectories_sampler
 
 if __name__ == '__main__':
-    with open("config.yml", "r") as ymlfile:
+    with open("canvas_config.yml", "r") as ymlfile:
         config = yaml.safe_load(ymlfile)
     config = munch.munchify(config)
-    gfn_parametrization, trajectories_sampler = train_grid_gfn(config)
+
+    reward_net = RewardNet().to('cuda')
+    gfn_parametrization, trajectories_sampler = train_grid_gfn(config, reward_net=reward_net)
