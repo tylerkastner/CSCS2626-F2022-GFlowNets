@@ -18,19 +18,11 @@ if TYPE_CHECKING:
 
 
 class ReplayBuffer:
-    def __init__(
-        self,
-        env: Env,
-        loss_fn: Loss | None = None,
-        objects_type: Literal["transitions", "trajectories", "states"] | None = None,
-        capacity: int = 1000,
-    ):
+    def __init__(self, env: Env, loss_fn: Loss | None = None, objects_type: Literal["transitions", "trajectories", "states"] | None = None, capacity: int = 1000,):
         self.env = env
         self.capacity = capacity
         self.terminating_states = None
-        if objects_type == "trajectories" or isinstance(
-            loss_fn, TrajectoryDecomposableLoss
-        ):
+        if objects_type == "trajectories" or isinstance(loss_fn, TrajectoryDecomposableLoss):
             self.training_objects = Trajectories(env)
             self.objects_type = "trajectories"
         elif objects_type == "transitions" or isinstance(loss_fn, EdgeDecomposableLoss):
@@ -41,9 +33,7 @@ class ReplayBuffer:
             self.terminating_states = env.States.from_batch_shape((0,))
             self.objects_type = "states"
         else:
-            raise ValueError(
-                f"Unknown objects_type: {objects_type} and loss_fn: {loss_fn}"
-            )
+            raise ValueError(f"Unknown objects_type: {objects_type} and loss_fn: {loss_fn}")
 
         self._is_full = False
         self._index = 0

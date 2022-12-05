@@ -6,7 +6,7 @@ import munch
 from gfn.src.gfn.envs import Canvas
 from gfn.src.gfn.estimators import LogitPFEstimator, LogitPBEstimator, LogZEstimator
 from gfn.src.gfn.losses import TBParametrization, TrajectoryBalance
-from gfn.src.gfn.samplers import MultiBinaryActionsSampler, TrajectoriesSampler
+from gfn.src.gfn.samplers import MultiBinaryActionsSampler, CanvasTrajectoriesSampler
 from gfn.src.gfn.containers.replay_buffer import ReplayBuffer
 from gfn.src.gfn.utils import trajectories_to_training_samples, validate
 from backbones.mnist_simple_unet import RewardNet
@@ -26,12 +26,12 @@ def train_grid_gfn(config, gfn_parametrization=None, trajectories_sampler=None, 
         parametrization = TBParametrization(logit_PF, logit_PB, logZ)
 
         actions_sampler = MultiBinaryActionsSampler(estimator=logit_PF)
-        trajectories_sampler = TrajectoriesSampler(env=env, actions_sampler=actions_sampler)
+        trajectories_sampler = CanvasTrajectoriesSampler(env=env, actions_sampler=actions_sampler)
     else:
         parametrization = gfn_parametrization
         trajectories_sampler = trajectories_sampler
 
-    loss_fn = TrajectoryBalance(parametrization=parametrization)
+    loss_fn = TrajectoryBalance(parametrization=parametrization, canvas_actions=True)
 
     visited_terminating_states = (env.States.from_batch_shape((0,)) if not config.experiment.resample_for_validation else None)
     if config.experiment.use_replay_buffer > 0:
@@ -50,7 +50,7 @@ def train_grid_gfn(config, gfn_parametrization=None, trajectories_sampler=None, 
     states_visited = 0
     unique_visited_states = {}
     for i in tqdm.trange(n_train_steps, disable=False if verbose==0 else True, position=0, leave=True):
-        trajectories = trajectories_sampler.sample(n_trajectories=config.experiment.batch_size)
+        trajectories = trajectories_sampler.sample(n_trajectories=config.experiment.batch_size, max_traj_length=config.env.n_denoising_steps)
         training_samples = trajectories_to_training_samples(trajectories, loss_fn)
         if replay_buffer is not None:
             replay_buffer.add(training_samples)

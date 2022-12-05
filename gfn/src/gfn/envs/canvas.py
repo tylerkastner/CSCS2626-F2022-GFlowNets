@@ -6,7 +6,7 @@ from gymnasium.spaces import Discrete, MultiDiscrete, MultiBinary
 from torchtyping import TensorType
 
 from gfn.src.gfn.containers.states import States
-from gfn.src.gfn.envs.env import Env
+from gfn.src.gfn.envs.canvas_env import CanvasEnv
 
 
 TensorLong = TensorType["batch_shape", torch.long]
@@ -19,7 +19,7 @@ StatesTensor = TensorType["batch_shape", "state_shape", torch.float]
 
 
 
-class Canvas(Env):
+class Canvas(CanvasEnv):
     def __init__(self, n_denoising_steps: int, reward_net: object, canvas_channels: int = 1, canvas_size: int = 28, device_str: Literal["cpu", "cuda"] = "cuda"):
         self.canvas_channels = canvas_channels
         self.canvas_size = canvas_size
@@ -34,10 +34,11 @@ class Canvas(Env):
         action_space = MultiBinary([self.canvas_size, self.canvas_size])
 
         super().__init__(
+            n_denoising_steps=n_denoising_steps,
             action_space=action_space,
             s0=s0,
             sf=sf,
-            device_str=device_str
+            device_str=device_str,
         )
 
     def make_States_class(self) -> type[States]:

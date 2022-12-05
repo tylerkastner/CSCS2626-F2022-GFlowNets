@@ -4,4 +4,4 @@ from .actions_samplers import (
     DiscreteActionsSampler,
     MultiBinaryActionsSampler,
 )
-from .trajectories_sampler import TrajectoriesSampler
+from .trajectories_sampler import TrajectoriesSampler, CanvasTrajectoriesSampler

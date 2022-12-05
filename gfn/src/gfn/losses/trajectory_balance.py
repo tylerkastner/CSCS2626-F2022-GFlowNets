@@ -36,6 +36,7 @@ class TrajectoryBalance(TrajectoryDecomposableLoss):
         parametrization: TBParametrization,
         reward_clip_min: float = 1e-5,
         on_policy: bool = False,
+        canvas_actions: bool = False
     ):
         """Loss object to evaluate the TB loss on a batch of trajectories.
 
@@ -50,10 +51,11 @@ class TrajectoryBalance(TrajectoryDecomposableLoss):
             parametrization.logit_PB
         )
         self.on_policy = on_policy
+        self.canvas_actions = canvas_actions
 
-    def get_scores(self, trajectories: Trajectories) -> Tuple[ScoresTensor, ScoresTensor, ScoresTensor]:
+    def get_scores(self, trajectories: Trajectories,) -> Tuple[ScoresTensor, ScoresTensor, ScoresTensor]:
 
-        log_pf_trajectories, log_pb_trajectories = self.get_pfs_and_pbs(trajectories, no_pf=self.on_policy)
+        log_pf_trajectories, log_pb_trajectories = self.get_pfs_and_pbs(trajectories, no_pf=self.on_policy, canvas_actions=self.canvas_actions)
         if self.on_policy:
             log_pf_trajectories = trajectories.log_probs
 

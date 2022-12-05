@@ -115,6 +115,7 @@ class TrajectoryDecomposableLoss(Loss, ABC):
         temperature: float = 1.0,
         epsilon=0.0,
         no_pf: bool = False,
+        canvas_actions: bool = False
     ) -> Tuple[LogPTrajectoriesTensor | None, LogPTrajectoriesTensor]:
         """Evaluate log_pf and log_pb for each action in each trajectory in the batch.
         This is useful when the policy used to sample the trajectories is different from the one used to evaluate the loss.
@@ -139,7 +140,11 @@ class TrajectoryDecomposableLoss(Loss, ABC):
             raise ValueError("Backward trajectories are not supported")
 
         valid_states = trajectories.states[~trajectories.states.is_sink_state]
-        valid_actions = trajectories.actions[trajectories.actions != -1]
+        if canvas_actions:
+            canvas_exit_action = torch.full((1, 28, 28), fill_value=0.0, dtype=torch.float32, device=torch.device('cuda'))
+            valid_actions = trajectories.actions[trajectories.actions != canvas_exit_action]
+        else:
+            valid_actions = trajectories.actions[trajectories.actions != -1]
 
         # uncomment next line for debugging
         # assert trajectories.states.is_sink_state[:-1].equal(trajectories.actions == -1)
@@ -147,46 +152,25 @@ class TrajectoryDecomposableLoss(Loss, ABC):
         if valid_states.batch_shape != tuple(valid_actions.shape):
             raise AssertionError("Something wrong happening with log_pf evaluations")
 
-        valid_states.forward_masks, valid_states.backward_masks = correct_cast(
-            valid_states.forward_masks, valid_states.backward_masks
-        )
+        valid_states.forward_masks, valid_states.backward_masks = correct_cast(valid_states.forward_masks, valid_states.backward_masks)
         log_pf_trajectories = None
         if not no_pf:
             valid_pf_logits = self.actions_sampler.get_logits(valid_states)
             valid_pf_logits = valid_pf_logits / temperature
             valid_log_pf_all = valid_pf_logits.log_softmax(dim=-1)
-            valid_log_pf_all = (
-                1 - epsilon
-            ) * valid_log_pf_all + epsilon * valid_states.forward_masks.float() / valid_states.forward_masks.sum(
-                dim=-1, keepdim=True
-            )
-            valid_log_pf_actions = torch.gather(
-                valid_log_pf_all, dim=-1, index=valid_actions.unsqueeze(-1)
-            ).squeeze(-1)
-            log_pf_trajectories = torch.full_like(
-                trajectories.actions, fill_value=fill_value, dtype=torch.float
-            )
+            valid_log_pf_all = (1 - epsilon) * valid_log_pf_all + \
+                               epsilon * valid_states.forward_masks.float() / valid_states.forward_masks.sum(dim=-1, keepdim=True)
+            valid_log_pf_actions = torch.gather(valid_log_pf_all, dim=-1, index=valid_actions.unsqueeze(-1)).squeeze(-1)
+            log_pf_trajectories = torch.full_like(trajectories.actions, fill_value=fill_value, dtype=torch.float)
             log_pf_trajectories[trajectories.actions != -1] = valid_log_pf_actions
 
-        valid_pb_logits = self.backward_actions_sampler.get_logits(
-            valid_states[~valid_states.is_initial_state]
-        )
+        valid_pb_logits = self.backward_actions_sampler.get_logits(valid_states[~valid_states.is_initial_state])
         valid_log_pb_all = valid_pb_logits.log_softmax(dim=-1)
-        non_exit_valid_actions = valid_actions[
-            valid_actions != trajectories.env.n_actions - 1
-        ]
-        valid_log_pb_actions = torch.gather(
-            valid_log_pb_all, dim=-1, index=non_exit_valid_actions.unsqueeze(-1)
-        ).squeeze(-1)
-        log_pb_trajectories = torch.full_like(
-            trajectories.actions, fill_value=fill_value, dtype=torch.float
-        )
-        log_pb_trajectories_slice = torch.full_like(
-            valid_actions, fill_value=fill_value, dtype=torch.float
-        )
-        log_pb_trajectories_slice[
-            valid_actions != trajectories.env.n_actions - 1
-        ] = valid_log_pb_actions
+        non_exit_valid_actions = valid_actions[valid_actions != trajectories.env.n_actions - 1]
+        valid_log_pb_actions = torch.gather(valid_log_pb_all, dim=-1, index=non_exit_valid_actions.unsqueeze(-1)).squeeze(-1)
+        log_pb_trajectories = torch.full_like(trajectories.actions, fill_value=fill_value, dtype=torch.float)
+        log_pb_trajectories_slice = torch.full_like(valid_actions, fill_value=fill_value, dtype=torch.float)
+        log_pb_trajectories_slice[valid_actions != trajectories.env.n_actions - 1] = valid_log_pb_actions
         log_pb_trajectories[trajectories.actions != -1] = log_pb_trajectories_slice
 
         return log_pf_trajectories, log_pb_trajectories

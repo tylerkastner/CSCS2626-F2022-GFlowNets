@@ -239,7 +239,7 @@ class MultiBinaryActionsSampler:
 
     def evaluate_log_probs(self, states, actions):
         probs = self.get_probs(states)
-        dist = Categorical(probs=probs)
+        dist = torch.distributions.binomial.Binomial(probs=probs)
         actions_log_probs = dist.log_prob(actions)
 
         return actions_log_probs

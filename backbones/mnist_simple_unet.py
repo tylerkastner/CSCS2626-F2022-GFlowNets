@@ -71,7 +71,7 @@ class UNet(nn.Module):
         out = self.decoder(enc_ftrs[::-1][0], enc_ftrs[::-1][1:])
         out = self.head(out)
         if self.retain_dim:
-            out = F.interpolate(out, self.out_sz)
+            out = F.interpolate(out, self.out_sz) + 0.5
         return out
 
 
@@ -85,8 +85,8 @@ class RewardNet(nn.Module):
 
         self.layers = []
         for i in range(len(enc_chs)-1):
-            self.layers.append(nn.Conv2d(enc_chs[i], enc_chs[i+1], 4, 2, 1, bias=True))
-            self.layers.append(nn.BatchNorm2d(enc_chs[i+1]))
+            self.layers.append(nn.Conv2d(enc_chs[i], enc_chs[i+1], 4, 2, 1, bias=True).to('cuda'))
+            self.layers.append(nn.BatchNorm2d(enc_chs[i+1]).to('cuda'))
         self.layers.append(nn.LeakyReLU())
         self.layers.append(nn.Flatten())
         self.layers.append(nn.LazyLinear(1).to('cuda'))
@@ -128,10 +128,11 @@ if __name__ == '__main__':
     custom_mnist_dataset = MNISTTrajLoader(img_dir='../data/MNIST/0/', eps_noise_background=0.1, noise_strategy='gaussian', beta=0.15)
     train_dataloader = DataLoader(custom_mnist_dataset, batch_size=64, shuffle=True)
 
-    traj = next(iter(train_dataloader))
+    traj, _ = next(iter(train_dataloader))
+    x = traj[:, 0:1].to('cuda')
 
-    unet = UNet(enc_chs=(1, 64, 128, 256), dec_chs=(256, 128, 64), num_class=2)
-    print(unet(traj[:, 0:1]).shape)
+    unet = UNet(enc_chs=(1, 64, 128, 256), dec_chs=(256, 128, 64), num_class=1).to('cuda')
+    print(unet(x))
 
-    reward_net = RewardNet()
-    print(reward_net(traj[:, 0:1]))
+    reward_net = RewardNet().to('cuda')
+    print(reward_net(x).shape)

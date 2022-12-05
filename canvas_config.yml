@@ -2,7 +2,7 @@ env:
   name: Canvas
   channels: 1
   size: 28
-  n_denoising_steps: 50
+  n_denoising_steps: 10
 
 experiment:
   n_epochs_reward_fn: 20
