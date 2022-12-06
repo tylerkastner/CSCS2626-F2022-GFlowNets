@@ -1,4 +1,5 @@
 import re
+import os
 import yaml
 import tqdm
 import munch
@@ -134,6 +135,16 @@ def load_pickled_trajectories(env, states_filename='sample_trajs_states.pkl', ac
     trajectories = [make_traj_object(states, actions) for states, actions in zip(states_list, actions_list)]
 
     return trajectories
+
+
+def load_batch_trajectories(env, batch_size, states_filename, actions_filename):
+    if not (os.ath.exists(states_filename) and os.ath.exists(states_filename)):
+        generate_trajs(env, n=batch_size,
+                        states_filename=states_filename,
+                        actions_filename=actions_filename,
+                        boltzmann=True
+                        )
+    return load_pickled_trajectories(env, states_filename, actions_filename)
 
 
 # if __name__ == '__main__':

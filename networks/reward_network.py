@@ -4,9 +4,11 @@ class RewardNetwork(nn.Module):
   def __init__(
     self,
     state_dim,
+    state_height,
     hidden_dim1 = 128,
     out_features = 1,
   ):
+    self.state_height = state_height
     super(RewardNetwork, self).__init__()
     self.net = nn.Sequential(
       nn.Linear(state_dim, hidden_dim1),
@@ -22,5 +24,5 @@ class RewardNetwork(nn.Module):
     # )
 
   def forward(self, x):
-    x = x/15 - 0.5
+    x = x/(self.state_height-1) - 0.5
     return self.net(x)
