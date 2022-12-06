@@ -124,16 +124,16 @@ def train(config, env):
     pbar.set_description('{}'.format(average_loss_per_epoch))
     reward_losses_per_epoch.append(average_loss_per_epoch)
 
-    if config.experiment.use_gfn_z and epoch % config.experiment.full_gfn_retrain == 0:
+    if config.experiment.use_gfn_z and (epoch+1) % config.experiment.full_gfn_retrain == 0:
       print('Fully retrain gfn...')
       reward_net_checkpoint = copy.deepcopy(reward_net)
-      gfn_parametrization, trajectories_sampler_gfn = train_grid_gfn(config, None, None, reward_net=reward_net, n_train_steps=1000,
-                                                                     file_name='epoch{}'.format(epoch))
+      gfn_parametrization, trajectories_sampler_gfn, gfn_reward = train_grid_gfn(config, None, None, reward_net=reward_net, n_train_steps=1000,
+                                                                     file_name='epoch{}'.format(epoch+1))
 
       all_rewards = reward_net(all_states.states_tensor.reshape(-1, config.env.ndim))
       Z = torch.sum(torch.exp(-all_rewards))
 
-      KL_div_per_epoch.append(KL_diversity(gt_rewards, all_rewards))
+      KL_div_per_epoch.append(KL_diversity(gt_rewards, gfn_reward))
       gfn_z_per_epoch.append(gfn_parametrization.logZ.tensor.detach().numpy().item())
       gt_z_per_epoch.append(torch.log(Z).detach().numpy().item())
       print('GT Z is {} and gfn Z is {}'.format(torch.log(Z), gfn_parametrization.logZ.tensor))

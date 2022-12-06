@@ -17,10 +17,10 @@ from gfn.src.gfn.utils import trajectories_to_training_samples, validate
 def train_grid_gfn(config, gfn_parametrization=None, trajectories_sampler=None, reward_net=None, gt_trajectories=None, n_train_steps=1000, verbose=0, file_name=''):
 
     env = HyperGrid(ndim=config.env.ndim, height=config.env.height, R0=0.01, reward_net=reward_net)  # Grid of size 8x8x8x8
-    all_states = env.build_grid()
-    all_rewards = env.reward(all_states)
-    if verbose == 0:
-        render_distribution(all_rewards, config.env.height, config.env.ndim, 'true_reward_{}_{}d'.format(file_name,config.env.ndim))
+    # all_states = env.build_grid()
+    # all_rewards = env.reward(all_states)
+    # if verbose == 0:
+    #     render_distribution(all_rewards, config.env.height, config.env.ndim, 'true_reward_{}_{}d'.format(file_name,config.env.ndim))
 
     if gfn_parametrization is None:
         logit_PF = LogitPFEstimator(env=env, module_name='NeuralNet')
@@ -84,6 +84,10 @@ def train_grid_gfn(config, gfn_parametrization=None, trajectories_sampler=None, 
             render_distribution(final_states_dist_pmf.reshape([config.env.height]*config.env.ndim) * torch.exp(parametrization.logZ.tensor.detach()), config.env.height, config.env.ndim,
                                 'emp_reward_{}_{}d_{}it'.format(file_name, config.env.ndim, i+1))
 
+    if config.experiment.kl_div_measure and n_train_steps > 500:
+        validation_info, final_states_dist_pmf = validate(env, parametrization, config.experiment.n_validation_samples, visited_terminating_states, return_terminating_distribution=True)
+        gfn_reward = final_states_dist_pmf.reshape([config.env.height]*config.env.ndim) * torch.exp(parametrization.logZ.tensor.detach())
+        return parametrization, trajectories_sampler, gfn_reward.reshape(-1, 1)
     return parametrization, trajectories_sampler
 
 if __name__ == '__main__':
