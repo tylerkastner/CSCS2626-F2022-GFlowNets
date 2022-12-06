@@ -93,10 +93,10 @@ class TrajectoriesSampler:
 
             trajectories_states += [states.states_tensor]
 
-        trajectories_states = torch.stack(trajectories_states, dim=0)
+        trajectories_states = torch.stack(trajectories_states, dim=0).detach()
         trajectories_states = self.env.States(states_tensor=trajectories_states)
-        trajectories_actions = torch.stack(trajectories_actions, dim=0)
-        trajectories_logprobs = torch.stack(trajectories_logprobs, dim=0)
+        trajectories_actions = torch.stack(trajectories_actions, dim=0).detach()
+        trajectories_logprobs = torch.stack(trajectories_logprobs, dim=0).detach()
 
         trajectories = Trajectories(
             env=self.env,
@@ -189,10 +189,10 @@ class CanvasTrajectoriesSampler:
 
             trajectories_states += [states.states_tensor]
 
-        trajectories_states = torch.stack(trajectories_states, dim=0)
+        trajectories_states = torch.stack(trajectories_states, dim=0).detach()
         trajectories_states = self.env.States(states_tensor=trajectories_states)
-        trajectories_actions = torch.stack(trajectories_actions, dim=0)
-        trajectories_logprobs = torch.stack(trajectories_logprobs, dim=0)
+        trajectories_actions = torch.stack(trajectories_actions, dim=0).detach()
+        trajectories_logprobs = torch.stack(trajectories_logprobs, dim=0).detach()
 
         trajectories = Trajectories(env=self.env,
                                     states=trajectories_states,

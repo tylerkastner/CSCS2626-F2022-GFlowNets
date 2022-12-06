@@ -71,7 +71,7 @@ class UNet(nn.Module):
         out = self.decoder(enc_ftrs[::-1][0], enc_ftrs[::-1][1:])
         out = self.head(out)
         if self.retain_dim:
-            out = F.interpolate(out, self.out_sz) + 0.5
+            out = F.interpolate(out, self.out_sz)
         return out
 
 

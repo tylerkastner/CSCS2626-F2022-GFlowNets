@@ -205,7 +205,16 @@ class MultiBinaryActionsSampler:
         if torch.any(torch.all(torch.isnan(logits), 1)):
             raise ValueError("NaNs in estimator")
         states.forward_masks, _ = correct_cast(states.forward_masks, states.backward_masks)
-        logits[~states.forward_masks] = -float("inf")
+
+        # for two channel
+        logits.swapaxes(1, 2).swapaxes(2, 3)[~states.forward_masks[:, 0]] = -float('inf')
+
+        # probably wrong attempt
+        #fm = torch.nn.functional.one_hot(states.forward_masks).swapaxes(1,-1)[...,0]
+        # logits[fm] = -float("inf")
+
+        # for only one channel
+        #logits[~states.forward_masks] = -float("inf")
         return logits
 
     def get_probs(self, states: States,) -> Tensor2D:
@@ -215,7 +224,8 @@ class MultiBinaryActionsSampler:
         """
         logits = self.get_logits(states)
         # logits[..., -1] -= self.sf_bias
-        probs = torch.softmax(logits / self.temperature, dim=-1)
+        # probs = torch.softmax(logits / self.temperature, dim=1)
+        probs = torch.sigmoid(logits.swapaxes(1,2).swapaxes(2,3) / self.temperature).swapaxes(2, 3).swapaxes(1, 2)
         return probs
 
     def sample(self, states: States) -> Tuple[Tensor1D, Tensor1D]:
@@ -231,10 +241,13 @@ class MultiBinaryActionsSampler:
             )
             probs = (1 - self.epsilon) * probs + self.epsilon * uniform_dist
         dist = torch.distributions.binomial.Binomial(probs=probs)
+        # dist = torch.distributions.multinomial.Multinomial(probs=probs.swapaxes(1,2).swapaxes(2,3))
         with torch.no_grad():
             actions = dist.sample()
         actions_log_probs = dist.log_prob(actions)
 
+        # actions = actions.swapaxes(2, 3).swapaxes(1, 2)
+        # actions_log_probs = actions_log_probs.swapaxes(2, 3).swapaxes(1, 2)
         return actions_log_probs, actions
 
     def evaluate_log_probs(self, states, actions):
