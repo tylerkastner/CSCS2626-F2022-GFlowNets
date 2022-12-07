@@ -207,7 +207,7 @@ class MultiBinaryActionsSampler:
         states.forward_masks, _ = correct_cast(states.forward_masks, states.backward_masks)
 
         # for two channel
-        logits.swapaxes(1, 2).swapaxes(2, 3)[~states.forward_masks[:, 0]] = -float('inf')
+        logits.swapaxes(1, 2).swapaxes(2, 3)[~states.forward_masks[:, 0]][:,1] = -float('inf')
 
         # probably wrong attempt
         #fm = torch.nn.functional.one_hot(states.forward_masks).swapaxes(1,-1)[...,0]
@@ -224,8 +224,8 @@ class MultiBinaryActionsSampler:
         """
         logits = self.get_logits(states)
         # logits[..., -1] -= self.sf_bias
-        # probs = torch.softmax(logits / self.temperature, dim=1)
-        probs = torch.sigmoid(logits.swapaxes(1,2).swapaxes(2,3) / self.temperature).swapaxes(2, 3).swapaxes(1, 2)
+        probs = torch.softmax(logits / self.temperature, dim=1)
+        # probs = torch.sigmoid(logits.swapaxes(1,2).swapaxes(2,3) / self.temperature).swapaxes(2, 3).swapaxes(1, 2)
         return probs
 
     def sample(self, states: States) -> Tuple[Tensor1D, Tensor1D]:
@@ -240,19 +240,78 @@ class MultiBinaryActionsSampler:
                 / states.forward_masks.sum(dim=-1, keepdim=True).float()
             )
             probs = (1 - self.epsilon) * probs + self.epsilon * uniform_dist
-        dist = torch.distributions.binomial.Binomial(probs=probs)
-        # dist = torch.distributions.multinomial.Multinomial(probs=probs.swapaxes(1,2).swapaxes(2,3))
+        # dist = torch.distributions.binomial.Binomial(probs=probs)
+        dist = torch.distributions.multinomial.Multinomial(probs=probs.swapaxes(1,2).swapaxes(2,3))
         with torch.no_grad():
             actions = dist.sample()
         actions_log_probs = dist.log_prob(actions)
 
-        # actions = actions.swapaxes(2, 3).swapaxes(1, 2)
-        # actions_log_probs = actions_log_probs.swapaxes(2, 3).swapaxes(1, 2)
+        actions = actions.swapaxes(2, 3).swapaxes(1, 2)
+        actions = torch.argmax(actions, dim=1, keepdim=True)
         return actions_log_probs, actions
 
     def evaluate_log_probs(self, states, actions):
         probs = self.get_probs(states)
-        dist = torch.distributions.binomial.Binomial(probs=probs)
-        actions_log_probs = dist.log_prob(actions)
-
+        # dist = torch.distributions.binomial.Binomial(probs=probs)
+        # actions_log_probs = dist.log_prob(actions)
+        dist = torch.distributions.multinomial.Multinomial(probs=probs.swapaxes(1, 2).swapaxes(2, 3))
+        actions_log_probs = dist.log_prob(torch.nn.functional.one_hot(actions.squeeze(), num_classes=2))
         return actions_log_probs
+
+
+
+
+
+class MultiBinaryBackwardActionsSampler(DiscreteActionsSampler, BackwardActionsSampler):
+    """
+    For sampling backward actions in discrete environments.
+    """
+
+    def __init__(
+        self,
+        estimator: LogitPBEstimator,
+        temperature: float = 1.0,
+        epsilon: float = 0.0,
+    ) -> None:
+        """s_f is not biased in the backward sampler."""
+        super().__init__(
+            estimator, temperature=temperature, sf_bias=0.0, epsilon=epsilon
+        )
+
+
+    def get_logits(self, states: States) -> Tensor2D:
+        logits = self.get_raw_logits(states)
+        if torch.any(torch.all(torch.isnan(logits), 1)):
+            raise ValueError("NaNs in estimator")
+        _, states.backward_masks = correct_cast(states.forward_masks, states.backward_masks)
+
+        # for two channel
+        logits.swapaxes(1, 2).swapaxes(2, 3)[~states.backward_masks[:, 0]][:, 1] = -float('inf')
+
+        # probably wrong attempt
+        # fm = torch.nn.functional.one_hot(states.backward_masks).swapaxes(1,-1)[...,0]
+        # logits[fm] = -float("inf")
+
+        # for only one channel
+        # logits[~states.backward_masks] = -float("inf")
+        return logits
+
+
+
+    def get_probs(self, states: States,) -> Tensor2D:
+        logits = self.get_logits(states)
+        probs = torch.softmax(logits / self.temperature, dim=1)
+        # probs = torch.sigmoid(logits.swapaxes(1,2).swapaxes(2,3) / self.temperature).swapaxes(2, 3).swapaxes(1, 2)
+        return probs
+
+    # def get_probs(self, states: States) -> Tensor2D:
+    #     logits = self.get_logits(states)
+    #     probs = torch.softmax(logits / self.temperature, dim=1)
+    #     # The following line is hack that works: when probs are nan, it means
+    #     # that the state is already done (usually during backward sampling).
+    #     # In which case, any action can be passed to the backward_step function
+    #     # making the state stay at s_0
+    #     probs = probs.nan_to_num(nan=1.0 / probs.shape[-1])
+    #     return probs
+
+

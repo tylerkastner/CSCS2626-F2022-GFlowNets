@@ -7,7 +7,7 @@ env:
 experiment:
   n_epochs_reward_fn: 20
   batch_size_reward_fn: 128
-  batch_size: 64
+  batch_size: 16
   use_replay_buffer: False
   replay_buffer_size: 1000
   validation_interval: 100

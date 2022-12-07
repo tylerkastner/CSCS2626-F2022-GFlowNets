@@ -10,6 +10,8 @@ from gfn.src.gfn.losses.base import PFBasedParametrization, TrajectoryDecomposab
 from gfn.src.gfn.samplers.actions_samplers import (
     BackwardDiscreteActionsSampler,
     DiscreteActionsSampler,
+    MultiBinaryActionsSampler,
+    MultiBinaryBackwardActionsSampler
 )
 
 # Typing
@@ -36,7 +38,8 @@ class TrajectoryBalance(TrajectoryDecomposableLoss):
         parametrization: TBParametrization,
         reward_clip_min: float = 1e-5,
         on_policy: bool = False,
-        canvas_actions: bool = False
+        canvas_actions: bool = False,
+        use_discrete_action_sampler = True
     ):
         """Loss object to evaluate the TB loss on a batch of trajectories.
 
@@ -46,10 +49,13 @@ class TrajectoryBalance(TrajectoryDecomposableLoss):
         """
         self.parametrization = parametrization
         self.reward_clip_min = reward_clip_min
-        self.actions_sampler = DiscreteActionsSampler(parametrization.logit_PF)
-        self.backward_actions_sampler = BackwardDiscreteActionsSampler(
-            parametrization.logit_PB
-        )
+        if use_discrete_action_sampler:
+            self.actions_sampler = DiscreteActionsSampler(parametrization.logit_PF)
+            self.backward_actions_sampler = BackwardDiscreteActionsSampler(parametrization.logit_PB)
+        else:
+            self.actions_sampler = MultiBinaryActionsSampler(parametrization.logit_PF)
+            self.backward_actions_sampler = MultiBinaryBackwardActionsSampler(parametrization.logit_PB)
+
         self.on_policy = on_policy
         self.canvas_actions = canvas_actions
 

@@ -131,8 +131,8 @@ if __name__ == '__main__':
     traj, _ = next(iter(train_dataloader))
     x = traj[:, 0:1].to('cuda')
 
-    unet = UNet(enc_chs=(1, 64, 128, 256), dec_chs=(256, 128, 64), num_class=1).to('cuda')
-    print(unet(x))
+    unet = UNet(enc_chs=(1, 64, 128), dec_chs=(128, 64), num_class=1).to('cuda')
+    print(unet(x).shape)
 
     reward_net = RewardNet().to('cuda')
     print(reward_net(x).shape)

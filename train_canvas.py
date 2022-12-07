@@ -18,7 +18,7 @@ def train_grid_gfn(config, gfn_parametrization=None, trajectories_sampler=None, 
     env = Canvas(n_denoising_steps=config.env.n_denoising_steps, reward_net=reward_net.to('cuda'))
 
     if gfn_parametrization is None:
-        nn_kwargs = {'enc_chs': (1, 64, 128, 256), 'dec_chs': (256, 128, 64), 'num_class': 1}
+        nn_kwargs = {'enc_chs': (1, 64, 128), 'dec_chs': (128, 64), 'num_class': 2}
         logit_PF = LogitPFEstimator(env=env, module_name='UNet', nn_kwargs=nn_kwargs)
         logit_PB = LogitPBEstimator(env=env, module_name='UNet', subtract_exit_actions=False, nn_kwargs=nn_kwargs)
         logZ = LogZEstimator(torch.tensor(0.))
@@ -31,7 +31,7 @@ def train_grid_gfn(config, gfn_parametrization=None, trajectories_sampler=None, 
         parametrization = gfn_parametrization
         trajectories_sampler = trajectories_sampler
 
-    loss_fn = TrajectoryBalance(parametrization=parametrization, canvas_actions=True)
+    loss_fn = TrajectoryBalance(parametrization=parametrization, canvas_actions=True, use_discrete_action_sampler=False)
 
     visited_terminating_states = (env.States.from_batch_shape((0,)) if not config.experiment.resample_for_validation else None)
     if config.experiment.use_replay_buffer > 0:

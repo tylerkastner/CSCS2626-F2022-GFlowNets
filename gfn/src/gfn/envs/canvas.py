@@ -20,13 +20,15 @@ StatesTensor = TensorType["batch_shape", "state_shape", torch.float]
 
 
 class Canvas(CanvasEnv):
-    def __init__(self, n_denoising_steps: int, reward_net: object, canvas_channels: int = 1, canvas_size: int = 28, device_str: Literal["cpu", "cuda"] = "cuda"):
+    def __init__(self, n_denoising_steps: int, reward_net: object, canvas_channels: int = 1, canvas_size: int = 28,
+        discrete_block_size = 4, device_str: Literal["cpu", "cuda"] = "cuda"):
         self.canvas_channels = canvas_channels
         self.canvas_size = canvas_size
         self.reward_net = reward_net
         self.n_denoising_steps = n_denoising_steps
         self.dx = 1 / n_denoising_steps
         self.exit_action = torch.zeros((canvas_channels, canvas_size, canvas_size)).to(device_str)
+        self.discrete_block_size = discrete_block_size
 
         s0 = torch.zeros((self.canvas_channels, self.canvas_size, self.canvas_size), dtype=torch.float32, device=torch.device(device_str))
         sf = torch.full((self.canvas_channels, self.canvas_size, self.canvas_size), fill_value=-1.0, dtype=torch.float32, device=torch.device(device_str))
@@ -87,10 +89,10 @@ class Canvas(CanvasEnv):
         return torch.all(torch.all(actions == self.exit_action, dim=-1), dim=-1).squeeze()
 
     def maskless_step(self, states: StatesTensor, actions: TensorLong) -> None:
-        states.add_(actions * self.dx)
+        states.add_(actions * self.dx * self.discrete_block_size)
 
     def maskless_backward_step(self, states: StatesTensor, actions: TensorLong) -> None:
-        states.add_(actions * self.dx)
+        states.add_( - actions * self.dx * self.discrete_block_size)
 
     def reward(self, final_states: States) -> TensorFloat:
         final_states_raw = final_states.states_tensor

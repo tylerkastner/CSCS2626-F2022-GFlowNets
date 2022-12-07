@@ -159,8 +159,9 @@ class CanvasTrajectoriesSampler:
         step = 0
 
         while not all(dones):
-            actions = torch.full((n_trajectories, self.env.canvas_channels, self.env.canvas_size, self.env.canvas_size), fill_value=0.0, dtype=torch.float, device=device,)
-            log_probs = torch.full((n_trajectories, self.env.canvas_channels, self.env.canvas_size, self.env.canvas_size), fill_value=0.0, dtype=torch.float, device=device)
+            actions = torch.full((n_trajectories, self.env.canvas_channels, self.env.canvas_size, self.env.canvas_size), fill_value=0.0, dtype=torch.int64, device=device,)
+            # log_probs = torch.full((n_trajectories, self.env.canvas_channels, self.env.canvas_size, self.env.canvas_size), fill_value=0.0, dtype=torch.float, device=device)
+            log_probs = torch.full((n_trajectories, self.env.canvas_size, self.env.canvas_size), fill_value=0.0, dtype=torch.float, device=device)
             if step < max_traj_length-1:
                 actions_log_probs, valid_actions = self.actions_sampler.sample(states[~dones])
                 actions[~dones] = valid_actions
@@ -168,7 +169,7 @@ class CanvasTrajectoriesSampler:
                 trajectories_actions += [actions]
                 trajectories_logprobs += [log_probs]
             else:
-                actions[~dones] = self.env.exit_action#torch.zeros_like(states[~done])
+                actions[~dones] = self.env.exit_action.to(dtype=torch.int64)#torch.zeros_like(states[~done])
                 log_probs = self.actions_sampler.evaluate_log_probs(states[~dones], actions)
                 trajectories_actions += [actions]
                 trajectories_logprobs += [log_probs]
