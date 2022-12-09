@@ -14,7 +14,7 @@ from gfn.src.gfn.utils import trajectories_to_training_samples, validate
 
 
 
-def train_grid_gfn(config, gfn_parametrization=None, trajectories_sampler=None, reward_net=None, gt_trajectories=None, n_train_steps=1000, verbose=0):
+def train_grid_gfn(config, gfn_parametrization=None, trajectories_sampler=None, reward_net=None, gt_trajectories=None, n_train_steps=10000, verbose=0):
 
     env = HyperGrid(ndim=config.env.ndim, height=config.env.height, R0=0.01, reward_net=reward_net)  # Grid of size 8x8x8x8
     all_states = env.build_grid()

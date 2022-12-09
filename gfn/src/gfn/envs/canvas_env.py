@@ -6,7 +6,7 @@ import torch
 from gymnasium.spaces import Discrete, Space
 from torchtyping import TensorType
 
-from gfn.src.gfn.containers.states import States, correct_cast
+from gfn.src.gfn.containers.states import TimeDependentStates, correct_cast
 from gfn.src.gfn.envs.preprocessors import IdentityPreprocessor, Preprocessor
 
 # Typing
@@ -48,6 +48,7 @@ class CanvasEnv(ABC):
         self.device = torch.device(device_str) if device_str is not None else s0.device
         self.States = self.make_States_class()
         self.n_denoising_steps = n_denoising_steps
+        # self.t = 0
 
         if preprocessor is None:
             preprocessor = IdentityPreprocessor(output_shape=tuple(s0.shape))
@@ -55,12 +56,12 @@ class CanvasEnv(ABC):
         self.preprocessor = preprocessor
 
     @abstractmethod
-    def make_States_class(self) -> type[States]:
+    def make_States_class(self) -> type[TimeDependentStates]:
         "Returns a class that inherits from States and implements the environment-specific methods."
         pass
 
     @abstractmethod
-    def is_exit_actions(self, actions: TensorLong) -> TensorBool:
+    def is_exit_actions(self, actions: TensorLong, step: int, automatically_exit_on_final_step: bool) -> TensorBool:
         "Returns True if the action is an exit action."
         pass
 
@@ -75,15 +76,15 @@ class CanvasEnv(ABC):
         pass
 
     @abstractmethod
-    def reward(self, final_states: States) -> TensorFloat:
+    def reward(self, final_states: TimeDependentStates) -> TensorFloat:
         pass
 
-    def get_states_indices(self, states: States) -> TensorLong:
+    def get_states_indices(self, states: TimeDependentStates) -> TensorLong:
         return NotImplementedError(
             "The environment does not support enumeration of states"
         )
 
-    def get_terminating_states_indices(self, states: States) -> TensorLong:
+    def get_terminating_states_indices(self, states: TimeDependentStates) -> TensorLong:
         return NotImplementedError(
             "The environment does not support enumeration of states"
         )
@@ -122,7 +123,7 @@ class CanvasEnv(ABC):
         )
 
     @property
-    def all_states(self) -> States:
+    def all_states(self) -> TimeDependentStates:
         """Returns a batch of all states for environments with enumerable states.
         The batch_shape should be (n_states,).
         This should satisfy:
@@ -133,7 +134,7 @@ class CanvasEnv(ABC):
         )
 
     @property
-    def terminating_states(self) -> States:
+    def terminating_states(self) -> TimeDependentStates:
         """Returns a batch of all terminating states for environments with enumerable states.
         The batch_shape should be (n_terminating_states,).
         This should satisfy:
@@ -143,29 +144,28 @@ class CanvasEnv(ABC):
             "The environment does not support enumeration of states"
         )
 
-    def reset(
-        self, batch_shape: Union[int, Tuple[int]], random: bool = False
-    ) -> States:
+    def reset(self, batch_shape: Union[int, Tuple[int]], random: bool = False) -> TimeDependentStates:
         "Instantiates a batch of initial states."
         if isinstance(batch_shape, int):
             batch_shape = (batch_shape,)
         return self.States.from_batch_shape(batch_shape=batch_shape, random=random)
 
-    def step(self, states: States, actions: TensorLong, step: int) -> States:
+    def step(self, states: TimeDependentStates, actions: TensorLong, step: int) -> TimeDependentStates:
         """Function that takes a batch of states and actions and returns a batch of next
         states and a boolean tensor indicating sink states in the new batch."""
         new_states = deepcopy(states)
         valid_states: TensorBool = ~states.is_sink_state
-        valid_actions = actions[valid_states]
+        # valid_actions = actions[valid_states]
 
-        if new_states.forward_masks is not None:
-            new_forward_masks, _ = correct_cast(new_states.forward_masks, new_states.backward_masks)
+
+        # if new_states.forward_masks is not None:
+            # new_forward_masks, _ = correct_cast(new_states.forward_masks, new_states.backward_masks)
             # valid_states_masks = new_forward_masks[valid_states]
             # valid_actions_bool = all(torch.gather(valid_states_masks, 1, valid_actions.unsqueeze(1)))
             # if not valid_actions_bool:
             #     raise NonValidActionsError("Actions are not valid")
 
-        new_sink_states = self.is_exit_actions(actions)
+        new_sink_states = self.is_exit_actions(actions, step, automatically_exit_on_final_step=False)
         new_states.states_tensor[new_sink_states] = self.sf
         new_sink_states = ~valid_states | new_sink_states
 
@@ -173,13 +173,12 @@ class CanvasEnv(ABC):
         not_done_actions = actions[~new_sink_states]
 
         self.maskless_step(not_done_states, not_done_actions)
-
         new_states.states_tensor[~new_sink_states] = not_done_states
 
         new_states.update_masks()
         return new_states
 
-    def backward_step(self, states: States, actions: TensorLong) -> States:
+    def backward_step(self, states: TimeDependentStates, actions: TensorLong) -> TimeDependentStates:
         """Function that takes a batch of states and actions and returns a batch of next
         states and a boolean tensor indicating initial states in the new batch."""
         new_states = deepcopy(states)
@@ -187,13 +186,9 @@ class CanvasEnv(ABC):
         valid_actions = actions[valid_states]
 
         if new_states.backward_masks is not None:
-            _, new_backward_masks = correct_cast(
-                new_states.forward_masks, new_states.backward_masks
-            )
+            _, new_backward_masks = correct_cast(new_states.forward_masks, new_states.backward_masks)
             valid_states_masks = new_backward_masks[valid_states]
-            valid_actions_bool = all(
-                torch.gather(valid_states_masks, 1, valid_actions.unsqueeze(1))
-            )
+            valid_actions_bool = all(torch.gather(valid_states_masks, 1, valid_actions.unsqueeze(1)))
             if not valid_actions_bool:
                 raise NonValidActionsError("Actions are not valid")
 

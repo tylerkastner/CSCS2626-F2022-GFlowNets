@@ -31,14 +31,10 @@ class TrajectoriesSampler:
 
     def sample_trajectories(self, states: Optional[States] = None, n_trajectories: Optional[int] = None, ) -> Trajectories:
         if states is None:
-            assert (
-                n_trajectories is not None
-            ), "Either states or n_trajectories should be specified"
+            assert (n_trajectories is not None), "Either states or n_trajectories should be specified"
             states = self.env.reset(batch_shape=(n_trajectories,))
         else:
-            assert (
-                len(states.batch_shape) == 1
-            ), "States should be a linear batch of states"
+            assert (len(states.batch_shape) == 1), "States should be a linear batch of states"
             n_trajectories = states.batch_shape[0]
 
         device = states.states_tensor.device
@@ -48,26 +44,15 @@ class TrajectoriesSampler:
         trajectories_states: List[StatesTensor] = [states.states_tensor]
         trajectories_actions: List[ActionsTensor] = []
         trajectories_logprobs: List[LogProbsTensor] = []
-        trajectories_dones = torch.zeros(
-            n_trajectories, dtype=torch.long, device=device
-        )
+        trajectories_dones = torch.zeros(n_trajectories, dtype=torch.long, device=device)
         trajectories_rewards = torch.zeros(n_trajectories, dtype=torch.float, device=device)
 
         step = 0
 
         while not all(dones):
-            actions = torch.full(
-                (n_trajectories,),
-                fill_value=-1,
-                dtype=torch.long,
-                device=device,
-            )
-            log_probs = torch.full(
-                (n_trajectories,), fill_value=0, dtype=torch.float, device=device
-            )
-            actions_log_probs, valid_actions = self.actions_sampler.sample(
-                states[~dones]
-            )
+            actions = torch.full((n_trajectories,),fill_value=-1,dtype=torch.long,device=device,)
+            log_probs = torch.full((n_trajectories,), fill_value=0, dtype=torch.float, device=device)
+            actions_log_probs, valid_actions = self.actions_sampler.sample(states[~dones])
             actions[~dones] = valid_actions
             log_probs[~dones] = actions_log_probs
             trajectories_actions += [actions]
@@ -81,13 +66,9 @@ class TrajectoriesSampler:
 
             step += 1
 
-            new_dones = (
-                new_states.is_initial_state if self.is_backward else sink_states_mask
-            ) & ~dones
+            new_dones = (new_states.is_initial_state if self.is_backward else sink_states_mask) & ~dones
             trajectories_dones[new_dones & ~dones] = step
-            trajectories_rewards[new_dones & ~dones] = self.env.reward(
-                states[new_dones & ~dones]
-            )
+            trajectories_rewards[new_dones & ~dones] = self.env.reward(states[new_dones & ~dones])
             states = new_states
             dones = dones | new_dones
 
@@ -157,22 +138,28 @@ class CanvasTrajectoriesSampler:
         trajectories_rewards = torch.zeros(n_trajectories, dtype=torch.float, device=device)
 
         step = 0
-
         while not all(dones):
-            actions = torch.full((n_trajectories, self.env.canvas_channels, self.env.canvas_size, self.env.canvas_size), fill_value=0.0, dtype=torch.int64, device=device,)
+            actions = torch.full((n_trajectories, self.env.canvas_channels, self.env.canvas_size, self.env.canvas_size), fill_value=-1.0, dtype=torch.int64, device=device,)
             # log_probs = torch.full((n_trajectories, self.env.canvas_channels, self.env.canvas_size, self.env.canvas_size), fill_value=0.0, dtype=torch.float, device=device)
             log_probs = torch.full((n_trajectories, self.env.canvas_size, self.env.canvas_size), fill_value=0.0, dtype=torch.float, device=device)
-            if step < max_traj_length-1:
-                actions_log_probs, valid_actions = self.actions_sampler.sample(states[~dones])
-                actions[~dones] = valid_actions
-                log_probs[~dones] = actions_log_probs
-                trajectories_actions += [actions]
-                trajectories_logprobs += [log_probs]
-            else:
-                actions[~dones] = self.env.exit_action.to(dtype=torch.int64)#torch.zeros_like(states[~done])
-                log_probs = self.actions_sampler.evaluate_log_probs(states[~dones], actions)
-                trajectories_actions += [actions]
-                trajectories_logprobs += [log_probs]
+            # if step < max_traj_length-1:
+            #     actions_log_probs, valid_actions = self.actions_sampler.sample(states[~dones])
+            #     actions[~dones] = valid_actions
+            #     log_probs[~dones] = actions_log_probs
+            #     trajectories_actions += [actions]
+            #     trajectories_logprobs += [log_probs]
+            # else:
+            #     actions[~dones] = self.env.exit_action.to(dtype=torch.int64)#torch.zeros_like(states[~done])
+            #     log_probs = self.actions_sampler.evaluate_log_probs(states[~dones], actions)
+            #     trajectories_actions += [actions]
+            #     trajectories_logprobs += [log_probs]
+            actions_log_probs, valid_actions = self.actions_sampler.sample(states[~dones], step=step)
+            actions[~dones] = valid_actions
+            log_probs[~dones] = actions_log_probs
+            trajectories_actions += [actions]
+            trajectories_logprobs += [log_probs]
+
+            step += 1
 
             if self.is_backward:
                 new_states = self.env.backward_step(states, actions)
@@ -180,9 +167,8 @@ class CanvasTrajectoriesSampler:
                 new_states = self.env.step(states, actions, step)
             sink_states_mask = new_states.is_sink_state
 
-            step += 1
 
-            new_dones = (new_states.is_initial_state if self.is_backward else sink_states_mask) & ~dones
+            new_dones = (new_states.is_initial_state if self.is_backward else sink_states_mask ) & ~dones
             trajectories_dones[new_dones & ~dones] = step
             trajectories_rewards[new_dones & ~dones] = self.env.reward(states[new_dones & ~dones])
             states = new_states

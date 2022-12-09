@@ -1,7 +1,7 @@
 env:
   name: Canvas
   channels: 1
-  size: 28
+  size: 3
   n_denoising_steps: 10
 
 experiment:
@@ -10,7 +10,7 @@ experiment:
   batch_size: 64
   use_replay_buffer: False
   replay_buffer_size: 1000
-  validation_interval: 100
+  validation_interval: 1000
   resample_for_validation: True
   n_validation_samples: 10000
   full_gfn_retrain: 2

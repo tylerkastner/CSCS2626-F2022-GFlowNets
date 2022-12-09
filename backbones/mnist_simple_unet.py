@@ -60,8 +60,6 @@ class UNet(nn.Module):
         super().__init__()
         self.encoder = Encoder(enc_chs)
         self.decoder = Decoder(dec_chs)
-        # if num_class == 2:
-        #     num_class = 1
         self.head = nn.Conv2d(dec_chs[-1], num_class, 1)
         self.retain_dim = retain_dim
         self.out_sz = out_sz
@@ -124,6 +122,35 @@ class RewardNet(nn.Module):
         return x
 
 
+class DebugNet(nn.Module):
+    def __init__(self, in_chs=(1, 2, 2), num_class=2, torso=None):
+        super().__init__()
+
+        self.n_total = int(torch.prod(torch.tensor(in_chs)))
+        self.num_class = num_class
+        self.in_chs = in_chs
+
+        if torso is None:
+            self.torso = torch.nn.Sequential()
+            self.torso.append(nn.Flatten())
+            self.torso.append(nn.Linear(self.n_total, self.n_total).to('cuda'))
+            self.torso.append(nn.ReLU())
+            self.torso.append(nn.Linear(self.n_total, self.n_total).to('cuda'))
+            self.torso.append(nn.ReLU())
+        else:
+            self.torso = torso
+
+        self.readout = nn.Linear(self.n_total, self.num_class*self.n_total).to('cuda')
+    def forward(self, x):
+
+        for layer in self.torso:
+            x = layer(x)
+
+        x = self.readout(x)
+
+        return x.reshape(-1, self.num_class, self.in_chs[1], self.in_chs[2])
+
+
 if __name__ == '__main__':
     custom_mnist_dataset = MNISTTrajLoader(img_dir='../data/MNIST/0/', eps_noise_background=0.1, noise_strategy='gaussian', beta=0.15)
     train_dataloader = DataLoader(custom_mnist_dataset, batch_size=64, shuffle=True)
@@ -131,8 +158,13 @@ if __name__ == '__main__':
     traj, _ = next(iter(train_dataloader))
     x = traj[:, 0:1].to('cuda')
 
-    unet = UNet(enc_chs=(1, 64, 128), dec_chs=(128, 64), num_class=1).to('cuda')
+    unet = UNet(enc_chs=(1, 64, 128), dec_chs=(128, 64), num_class=2).to('cuda')
     print(unet(x).shape)
 
     reward_net = RewardNet().to('cuda')
     print(reward_net(x).shape)
+
+    x = torch.zeros(64,1,3,3).to('cuda')
+    debug_net = DebugNet(in_chs=(1,3,3))
+    print(debug_net(x).shape)
+    # print(debug_net(x))

@@ -39,7 +39,8 @@ class TrajectoryBalance(TrajectoryDecomposableLoss):
         reward_clip_min: float = 1e-5,
         on_policy: bool = False,
         canvas_actions: bool = False,
-        use_discrete_action_sampler = True
+        use_discrete_action_sampler = True,
+        max_traj_length=None
     ):
         """Loss object to evaluate the TB loss on a batch of trajectories.
 
@@ -53,8 +54,8 @@ class TrajectoryBalance(TrajectoryDecomposableLoss):
             self.actions_sampler = DiscreteActionsSampler(parametrization.logit_PF)
             self.backward_actions_sampler = BackwardDiscreteActionsSampler(parametrization.logit_PB)
         else:
-            self.actions_sampler = MultiBinaryActionsSampler(parametrization.logit_PF)
-            self.backward_actions_sampler = MultiBinaryBackwardActionsSampler(parametrization.logit_PB)
+            self.actions_sampler = MultiBinaryActionsSampler(parametrization.logit_PF, max_traj_length=max_traj_length)
+            self.backward_actions_sampler = MultiBinaryBackwardActionsSampler(parametrization.logit_PB, max_traj_length=max_traj_length)
 
         self.on_policy = on_policy
         self.canvas_actions = canvas_actions

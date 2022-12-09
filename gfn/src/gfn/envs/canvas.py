@@ -5,7 +5,7 @@ from einops import rearrange
 from gymnasium.spaces import Discrete, MultiDiscrete, MultiBinary
 from torchtyping import TensorType
 
-from gfn.src.gfn.containers.states import States
+from gfn.src.gfn.containers.states import TimeDependentStates
 from gfn.src.gfn.envs.canvas_env import CanvasEnv
 
 
@@ -43,11 +43,11 @@ class Canvas(CanvasEnv):
             device_str=device_str,
         )
 
-    def make_States_class(self) -> type[States]:
+    def make_States_class(self) -> type[TimeDependentStates]:
         "Creates a States class for this environment"
         env = self
 
-        class CanvasStates(States):
+        class CanvasStates(TimeDependentStates):
 
             state_shape: ClassVar[tuple[int, ...]] = (env.canvas_channels, env.canvas_size, env.canvas_size)
             s0 = env.s0
@@ -55,11 +55,12 @@ class Canvas(CanvasEnv):
 
             # Instantiate class variables as instance variables so we can demote instance of
             # CanvasStates to an instance of States
-            def __init__(self, states_tensor: StatesTensor, forward_masks: ForwardMasksTensor | None = None, backward_masks: BackwardMasksTensor | None = None,):
+            def __init__(self, states_tensor: StatesTensor, forward_masks: ForwardMasksTensor | None = None, backward_masks: BackwardMasksTensor | None = None, time_tensor=None):
                 self.state_shape = (env.canvas_channels, env.canvas_size, env.canvas_size)
                 self.s0 = env.s0
                 self.sf = env.sf
-                super().__init__(states_tensor, forward_masks, backward_masks,)
+                self.time_tensor = time_tensor
+                super().__init__(states_tensor, forward_masks, backward_masks, time_tensor)
 
             @classmethod
             def make_random_states_tensor(cls, batch_shape: Tuple[int, ...]) -> StatesTensor:
@@ -80,13 +81,15 @@ class Canvas(CanvasEnv):
                 self.forward_masks = cast(ForwardMasksTensor, self.forward_masks)
                 self.backward_masks = cast(BackwardMasksTensor, self.backward_masks)
 
-                self.forward_masks = self.states_tensor + env.dx <= 1.0
-                self.backward_masks = self.states_tensor <= 0.0
+                self.forward_masks = self.states_tensor + env.dx * env.discrete_block_size < 1.0
+                self.backward_masks = self.states_tensor - env.dx * env.discrete_block_size < 0.0
 
         return CanvasStates
 
-    def is_exit_actions(self, actions: TensorLong) -> TensorBool:
-        return torch.all(torch.all(actions == self.exit_action, dim=-1), dim=-1).squeeze()
+    def is_exit_actions(self, actions: TensorLong, step: int, automatically_exit_on_final_step: bool) -> TensorBool:
+        is_exit_action_mask = torch.all(torch.all(actions == self.exit_action, dim=-1), dim=-1).squeeze()
+        exit_step_mask = torch.full_like(is_exit_action_mask, fill_value=step == self.n_denoising_steps)
+        return is_exit_action_mask | exit_step_mask if automatically_exit_on_final_step else is_exit_action_mask
 
     def maskless_step(self, states: StatesTensor, actions: TensorLong) -> None:
         states.add_(actions * self.dx * self.discrete_block_size)
@@ -94,12 +97,13 @@ class Canvas(CanvasEnv):
     def maskless_backward_step(self, states: StatesTensor, actions: TensorLong) -> None:
         states.add_( - actions * self.dx * self.discrete_block_size)
 
-    def reward(self, final_states: States) -> TensorFloat:
+    def reward(self, final_states: TimeDependentStates) -> TensorFloat:
         final_states_raw = final_states.states_tensor
-        reward = torch.exp(-self.reward_net(final_states_raw.to(torch.float32)).detach().squeeze(-1))
+        # reward = torch.exp(-self.reward_net(final_states_raw.to(torch.float32)).detach().squeeze(-1))
+        reward = (final_states_raw.mean(-1).mean(-1).mean(-1) )**3
         return reward
 
-    def get_states_indices(self, states: States) -> TensorLong:
+    def get_states_indices(self, states: TimeDependentStates) -> TensorLong:
         # states_raw = states.states_tensor
         #
         # canonical_base = self.height ** torch.arange(self.ndim - 1, -1, -1, device=states_raw.device)
@@ -107,7 +111,7 @@ class Canvas(CanvasEnv):
         # return indices
         raise NotImplementedError('Too many indices in the canvas environment')
 
-    def get_terminating_states_indices(self, states: States) -> TensorLong:
+    def get_terminating_states_indices(self, states: TimeDependentStates) -> TensorLong:
         raise NotImplementedError('Too many indices in the canvas environment')
 
     @property
@@ -129,7 +133,7 @@ class Canvas(CanvasEnv):
         # return rewards.sum().log().item()
         raise NotImplementedError('Needs to be estimated')
 
-    def build_grid(self) -> States:
+    def build_grid(self) -> TimeDependentStates:
         # "Utility function to build the complete grid"
         # H = self.height
         # ndim = self.ndim
@@ -150,13 +154,13 @@ class Canvas(CanvasEnv):
         raise NotImplementedError('Too many')
 
     @property
-    def all_states(self) -> States:
+    def all_states(self) -> TimeDependentStates:
         # grid = self.build_grid()
         # flat_grid = rearrange(grid.states_tensor, "... ndim -> (...) ndim")
         # return self.States(flat_grid)
         raise NotImplementedError('Too many')
 
     @property
-    def terminating_states(self) -> States:
+    def terminating_states(self) -> TimeDependentStates:
         # return self.all_states
         raise NotImplementedError('Too many')
