@@ -129,23 +129,28 @@ class DebugNet(nn.Module):
         self.n_total = int(torch.prod(torch.tensor(in_chs)))
         self.num_class = num_class
         self.in_chs = in_chs
+        n_hidden = 16
 
         if torso is None:
             self.torso = torch.nn.Sequential()
             self.torso.append(nn.Flatten())
-            self.torso.append(nn.Linear(self.n_total, self.n_total).to('cuda'))
+            self.torso.append(nn.Linear(self.n_total, n_hidden).to('cuda'))
             self.torso.append(nn.ReLU())
-            self.torso.append(nn.Linear(self.n_total, self.n_total).to('cuda'))
+            self.torso.append(nn.Linear(n_hidden, n_hidden).to('cuda'))
             self.torso.append(nn.ReLU())
         else:
             self.torso = torso
 
-        self.readout = nn.Linear(self.n_total, self.num_class*self.n_total).to('cuda')
+        self.prereadout = nn.Linear(n_hidden, n_hidden).to('cuda')
+        self.activation = nn.ReLU()
+        self.readout = nn.Linear(n_hidden, self.num_class*self.n_total).to('cuda')
     def forward(self, x):
 
         for layer in self.torso:
             x = layer(x)
 
+        x = self.prereadout(x)
+        x = self.activation(x)
         x = self.readout(x)
 
         return x.reshape(-1, self.num_class, self.in_chs[1], self.in_chs[2])

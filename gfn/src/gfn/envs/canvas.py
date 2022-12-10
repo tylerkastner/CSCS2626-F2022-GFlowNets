@@ -82,7 +82,7 @@ class Canvas(CanvasEnv):
                 self.backward_masks = cast(BackwardMasksTensor, self.backward_masks)
 
                 self.forward_masks = self.states_tensor + env.dx * env.discrete_block_size < 1.0
-                self.backward_masks = self.states_tensor - env.dx * env.discrete_block_size < 0.0
+                self.backward_masks = self.states_tensor - env.dx * env.discrete_block_size >= 0.0
 
         return CanvasStates
 
@@ -100,7 +100,7 @@ class Canvas(CanvasEnv):
     def reward(self, final_states: TimeDependentStates) -> TensorFloat:
         final_states_raw = final_states.states_tensor
         # reward = torch.exp(-self.reward_net(final_states_raw.to(torch.float32)).detach().squeeze(-1))
-        reward = (final_states_raw.mean(-1).mean(-1).mean(-1) )**3
+        reward = torch.exp((final_states_raw.mean(-1).mean(-1).mean(-1) + 1))
         return reward
 
     def get_states_indices(self, states: TimeDependentStates) -> TensorLong:

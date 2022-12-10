@@ -215,8 +215,6 @@ class MultiBinaryActionsSampler:
         else:
             logits[step == self.max_traj_length, -1] = -float('inf')
 
-        # for only one channel
-        #logits[~states.forward_masks] = -float("inf")
         return logits
 
     def get_probs(self, states: States, step=None) -> Tensor2D:
@@ -261,18 +259,28 @@ class MultiBinaryActionsSampler:
 
 
 
-class MultiBinaryBackwardActionsSampler(DiscreteActionsSampler, BackwardActionsSampler):
+class MultiBinaryBackwardActionsSampler:
     """
     For sampling backward actions in discrete environments.
     """
 
     def __init__(self, estimator: LogitPBEstimator, temperature: float = 1.0, epsilon: float = 0.0, max_traj_length: int = None) -> None:
         """s_f is not biased in the backward sampler."""
+        self.estimator = estimator
+        self.temperature = temperature
+        self.epsilon = epsilon
         self.max_traj_length = max_traj_length
-        super().__init__(
-            estimator, temperature=temperature, sf_bias=0.0, epsilon=epsilon
-        )
 
+    def get_raw_logits(self, states: States) -> Tensor2D:
+        """
+        This is before illegal actions are masked out and the exit action is biased.
+        Should be used for Discrete action spaces only.
+
+        Returns:
+            Tensor2D: A 2D tensor of shape (batch_size, n_actions) containing the logits for each action in each state in the batch.
+        """
+        logits = self.estimator(states)
+        return logits
 
     def get_logits(self, states: States, step=None) -> Tensor2D:
         logits = self.get_raw_logits(states)
@@ -281,15 +289,13 @@ class MultiBinaryBackwardActionsSampler(DiscreteActionsSampler, BackwardActionsS
         _, states.backward_masks = correct_cast(states.forward_masks, states.backward_masks)
 
         # for two channel
-        #logits.swapaxes(1, 2).swapaxes(2, 3)[..., 1][~states.backward_masks[:,0]] = -float('inf')
+        logits.swapaxes(1, 2).swapaxes(2, 3)[..., 1][~states.backward_masks[:,0]] = -float('inf')
         # if type(step) is int:
         #     if step == self.max_traj_length:
         #         logits[:, -1] = -float('inf')
         # else:
         #     logits[step == self.max_traj_length, -1] = -float('inf')
 
-        # for only one channel
-        # logits[~states.backward_masks] = -float("inf")
         return logits
 
 
@@ -298,6 +304,8 @@ class MultiBinaryBackwardActionsSampler(DiscreteActionsSampler, BackwardActionsS
         logits = self.get_logits(states, step=step)
         probs = torch.softmax(logits / self.temperature, dim=1)
         # probs = torch.sigmoid(logits.swapaxes(1,2).swapaxes(2,3) / self.temperature).swapaxes(2, 3).swapaxes(1, 2)
+
+        #probs = probs.nan_to_num(nan=1.0 / probs.shape[-1])
         return probs
 
 

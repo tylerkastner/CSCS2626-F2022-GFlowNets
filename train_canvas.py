@@ -77,7 +77,8 @@ def train_grid_gfn(config, gfn_parametrization=None, trajectories_sampler=None, 
         logzs.append(parametrization.parameters['logZ'].detach().cpu().numpy().item())
 
         if i % config.experiment.validation_interval == 0:
-            plt.imshow(trajectories.last_states.states_tensor[0][0].detach().cpu().numpy())
+            plt.imshow(trajectories.last_states.states_tensor[0][0].detach().cpu().numpy(), vmin=0.0, vmax=1.0)
+            plt.colorbar()
             plt.show()
             plt.plot(rewards)
             plt.title('Reward')
