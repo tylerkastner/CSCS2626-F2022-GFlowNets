@@ -140,6 +140,8 @@ class BackwardDiscreteActionsSampler(DiscreteActionsSampler, BackwardActionsSamp
         _, states.backward_masks = correct_cast(
             states.forward_masks, states.backward_masks
         )
+        # mask = torch.cat([~states.backward_masks, torch.zeros((states.backward_masks.shape[0]), dtype=torch.bool)[:,None]], dim=-1)
+        # logits[mask] = -float("inf")
         logits[~states.backward_masks] = -float("inf")
         return logits
 
@@ -289,12 +291,8 @@ class MultiBinaryBackwardActionsSampler:
         _, states.backward_masks = correct_cast(states.forward_masks, states.backward_masks)
 
         # for two channel
-        logits.swapaxes(1, 2).swapaxes(2, 3)[..., 1][~states.backward_masks[:,0]] = -float('inf')
-        # if type(step) is int:
-        #     if step == self.max_traj_length:
-        #         logits[:, -1] = -float('inf')
-        # else:
-        #     logits[step == self.max_traj_length, -1] = -float('inf')
+        logits.swapaxes(1, 2).swapaxes(2, 3)[..., 1][~states.backward_masks[:, 0]] = -float('inf')
+        # logits[:, 0] = -float('inf')
 
         return logits
 

@@ -47,6 +47,8 @@ class FunctionEstimator(ABC):
             module = UNet(enc_chs=nn_kwargs['nn_kwargs']['enc_chs'], dec_chs=nn_kwargs['nn_kwargs']['dec_chs'], num_class=nn_kwargs['nn_kwargs']['num_class']).to('cuda:0')
         elif module_name == 'Debug':
             module = DebugNet( **nn_kwargs).to('cuda:0')
+        elif module_name == "Uniform":
+            module = Uniform(output_dim=output_dim)
 
         self.module = module
         if isinstance(self.module, Tabular):

@@ -89,7 +89,7 @@ class Canvas(CanvasEnv):
     def is_exit_actions(self, actions: TensorLong, step: int, automatically_exit_on_final_step: bool) -> TensorBool:
         is_exit_action_mask = torch.all(torch.all(actions == self.exit_action, dim=-1), dim=-1).squeeze()
         exit_step_mask = torch.full_like(is_exit_action_mask, fill_value=step == self.n_denoising_steps)
-        return is_exit_action_mask | exit_step_mask if automatically_exit_on_final_step else is_exit_action_mask
+        return exit_step_mask | is_exit_action_mask if automatically_exit_on_final_step else is_exit_action_mask
 
     def maskless_step(self, states: StatesTensor, actions: TensorLong) -> None:
         states.add_(actions * self.dx * self.discrete_block_size)

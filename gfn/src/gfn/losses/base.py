@@ -156,6 +156,8 @@ class TrajectoryDecomposableLoss(Loss, ABC):
             log_pf_trajectories[~torch.all(torch.all(torch.all((trajectories.actions == -1), dim=-1), dim=-1), dim=-1)] = valid_log_pf_actions
 
             valid_log_pb_all = valid_pb_logits.log_softmax(dim=1)
+            # uniform log_pb_vall
+            # valid_log_pb_all = torch.log(torch.ones_like(valid_log_pb_all) * 0.5)
             non_exit_valid_actions = valid_actions[~torch.all(torch.all(torch.all((valid_actions == 0), dim=-1), dim=-1), dim=-1).flatten()]
             valid_log_pb_actions = torch.gather(valid_log_pb_all, dim=1, index=non_exit_valid_actions)
             valid_log_pb_actions = valid_log_pb_actions.sum(-1).sum(-1).sum(-1)
