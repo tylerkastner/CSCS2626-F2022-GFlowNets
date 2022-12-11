@@ -211,11 +211,11 @@ class MultiBinaryActionsSampler:
 
         # for two channel
         logits.swapaxes(1, 2).swapaxes(2, 3)[..., 1][~states.forward_masks[:,0]] = -float('inf')
-        if type(step) is int:
-            if step == self.max_traj_length:
-                logits[:, -1] = -float('inf')
-        else:
-            logits[step == self.max_traj_length, -1] = -float('inf')
+        # if type(step) is int:
+        #     if step == self.max_traj_length:
+        #         logits[:, -1] = -float('inf')
+        # else:
+        #     logits[step == self.max_traj_length, -1] = -float('inf')
 
         return logits
 

@@ -133,8 +133,9 @@ class TrajectoryDecomposableLoss(Loss, ABC):
         if trajectories.is_backward:
             raise ValueError("Backward trajectories are not supported")
 
-        valid_states = trajectories.states[~trajectories.states.is_sink_state]
+
         if canvas_actions:
+            valid_states = trajectories.states[~trajectories.states.is_sink_state]
             time_tensor = torch.arange(trajectories.states.states_tensor.shape[0]).to('cuda')
             time_tensor = torch.stack([time_tensor] * trajectories.states.states_tensor.shape[1]).T
             valid_time_tensor = time_tensor[~trajectories.states.is_sink_state.cpu()]
@@ -156,19 +157,20 @@ class TrajectoryDecomposableLoss(Loss, ABC):
             log_pf_trajectories[~torch.all(torch.all(torch.all((trajectories.actions == -1), dim=-1), dim=-1), dim=-1)] = valid_log_pf_actions
 
             valid_log_pb_all = valid_pb_logits.log_softmax(dim=1)
-            # uniform log_pb_vall
             # valid_log_pb_all = torch.log(torch.ones_like(valid_log_pb_all) * 0.5)
-            non_exit_valid_actions = valid_actions[~torch.all(torch.all(torch.all((valid_actions == 0), dim=-1), dim=-1), dim=-1).flatten()]
+            non_exit_valid_actions = valid_actions.reshape(trajectories.actions.shape[0], trajectories.actions.shape[1], valid_actions.shape[1], valid_actions.shape[2], valid_actions.shape[3])[:-1].flatten(0,1)
             valid_log_pb_actions = torch.gather(valid_log_pb_all, dim=1, index=non_exit_valid_actions)
             valid_log_pb_actions = valid_log_pb_actions.sum(-1).sum(-1).sum(-1)
 
             log_pb_trajectories = torch.full(size=(trajectories.actions.shape[0], trajectories.actions.shape[1]), fill_value=fill_value, dtype=torch.float, device=valid_actions.device)#torch.full_like(trajectories.actions, fill_value=fill_value,dtype=torch.float)
             log_pb_trajectories_slice = torch.full(size=(valid_actions.shape[0],), fill_value=fill_value, dtype=torch.float, device=valid_actions.device)
-            log_pb_trajectories_slice[~torch.all(torch.all(torch.all((valid_actions == 0), dim=-1), dim=-1), dim=-1).flatten()] = valid_log_pb_actions
+            log_pb_trajectories_slice[:valid_log_pb_actions.shape[0]] = valid_log_pb_actions
+            # log_pb_trajectories_slice[~torch.all(torch.all(torch.all((valid_actions == 0), dim=-1), dim=-1), dim=-1).flatten()] = valid_log_pb_actions
             log_pb_trajectories[~torch.all(torch.all(torch.all((trajectories.actions == -1), dim=-1), dim=-1), dim=-1)] = log_pb_trajectories_slice
 
 
         else:
+            valid_states = trajectories.states[~trajectories.states.is_sink_state]
             valid_actions = trajectories.actions[trajectories.actions != -1]
 
             # uncomment next line for debugging
@@ -191,6 +193,7 @@ class TrajectoryDecomposableLoss(Loss, ABC):
 
             valid_pb_logits = self.backward_actions_sampler.get_logits(valid_states[~valid_states.is_initial_state])
             valid_log_pb_all = valid_pb_logits.log_softmax(dim=-1)
+            # valid_log_pb_all = torch.log(torch.ones_like(valid_log_pb_all) * 0.5)
             non_exit_valid_actions = valid_actions[valid_actions != trajectories.env.n_actions - 1]
             valid_log_pb_actions = torch.gather(valid_log_pb_all, dim=-1, index=non_exit_valid_actions.unsqueeze(-1)).squeeze(-1)
             log_pb_trajectories = torch.full_like(trajectories.actions, fill_value=fill_value, dtype=torch.float)
