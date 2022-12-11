@@ -139,7 +139,7 @@ class CanvasTrajectoriesSampler:
 
         step = 0
         while not all(dones):
-            actions = torch.full((n_trajectories, self.env.canvas_channels, self.env.canvas_size, self.env.canvas_size), fill_value=-1.0, dtype=torch.int64, device=device,)
+            actions = torch.full((n_trajectories, self.env.canvas_channels-self.env.n_time_features, self.env.canvas_size, self.env.canvas_size), fill_value=-1.0, dtype=torch.int64, device=device,)
             # log_probs = torch.full((n_trajectories, self.env.canvas_channels, self.env.canvas_size, self.env.canvas_size), fill_value=0.0, dtype=torch.float, device=device)
             log_probs = torch.full((n_trajectories, self.env.canvas_size, self.env.canvas_size), fill_value=0.0, dtype=torch.float, device=device)
             actions_log_probs, valid_actions = self.actions_sampler.sample(states[~dones], step=step)
@@ -166,10 +166,10 @@ class CanvasTrajectoriesSampler:
 
             trajectories_states += [states.states_tensor]
 
-        trajectories_states = torch.stack(trajectories_states, dim=0).detach()
+        trajectories_states = torch.stack(trajectories_states, dim=0).detach()#.cpu()
         trajectories_states = self.env.States(states_tensor=trajectories_states)
-        trajectories_actions = torch.stack(trajectories_actions, dim=0).detach()
-        trajectories_logprobs = torch.stack(trajectories_logprobs, dim=0).detach()
+        trajectories_actions = torch.stack(trajectories_actions, dim=0).detach()#.cpu()
+        trajectories_logprobs = torch.stack(trajectories_logprobs, dim=0).detach()#.cpu()
 
         trajectories = Trajectories(env=self.env,
                                     states=trajectories_states,
@@ -179,7 +179,6 @@ class CanvasTrajectoriesSampler:
                                     rewards=trajectories_rewards,
                                     log_probs=trajectories_logprobs,
                                     )
-
         return trajectories
 
     def sample(self, n_trajectories: int, max_traj_length: int = float('inf')) -> Trajectories:

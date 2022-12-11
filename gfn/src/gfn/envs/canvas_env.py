@@ -38,7 +38,7 @@ class CanvasEnv(ABC):
         sf: Optional[OneStateTensor] = None,
         device_str: Optional[str] = None,
         preprocessor: Optional[Preprocessor] = None,
-
+        n_time_features: int = 1
     ):
         self.s0 = s0
         if sf is None:
@@ -48,7 +48,7 @@ class CanvasEnv(ABC):
         self.device = torch.device(device_str) if device_str is not None else s0.device
         self.States = self.make_States_class()
         self.n_denoising_steps = n_denoising_steps
-        # self.t = 0
+        self.n_time_features = n_time_features
 
         if preprocessor is None:
             preprocessor = IdentityPreprocessor(output_shape=tuple(s0.shape))

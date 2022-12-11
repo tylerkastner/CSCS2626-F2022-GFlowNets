@@ -3,6 +3,7 @@ env:
   channels: 1
   size: 1
   n_denoising_steps: 10
+  n_time_featuers: 2
 
 experiment:
   n_epochs_reward_fn: 20

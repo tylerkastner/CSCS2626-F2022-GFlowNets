@@ -3,6 +3,7 @@ import plotly
 import plotly.graph_objects as go
 import numpy as np
 from pathlib import Path
+import torch
 
 def render_distribution(distribution, box_height, ndim, file_name):
     '''
@@ -33,5 +34,5 @@ def render_distribution(distribution, box_height, ndim, file_name):
 
 
 def frequency_features(t, n_features):
-    features = [np.sin(t * 2 * np.pi * n) for n in range(1,n_features)]
-    return np.concatenate(features)
+    features = [np.sin(t * 2 * np.pi * n) for n in range(1,n_features+1)]
+    return torch.tensor(features)

@@ -355,15 +355,8 @@ class TimeDependentStates(Container, ABC):
     s0: ClassVar[OneStateTensor]  # Source state of the DAG
     sf: ClassVar[OneStateTensor]  # Dummy state, used to pad a batch of states
 
-    def __init__(
-        self,
-        states_tensor: StatesTensor,
-        forward_masks: ForwardMasksTensor | None = None,
-        backward_masks: BackwardMasksTensor | None = None,
-        time_tensor=None
-    ):
+    def __init__(self,states_tensor: StatesTensor, forward_masks: ForwardMasksTensor | None = None,backward_masks: BackwardMasksTensor | None = None):
         self.states_tensor = states_tensor
-        self.time_tensor = time_tensor
         self.batch_shape = tuple(self.states_tensor.shape)[: -len(self.state_shape)]
         if forward_masks is None and backward_masks is None:
             try:
@@ -389,8 +382,7 @@ class TimeDependentStates(Container, ABC):
             states_tensor = cls.make_random_states_tensor(batch_shape)
         else:
             states_tensor = cls.make_initial_states_tensor(batch_shape)
-        time_tensor = torch.zeros((states_tensor.shape[0],))
-        return cls(states_tensor, time_tensor=time_tensor)
+        return cls(states_tensor)
 
     @classmethod
     def make_initial_states_tensor(cls, batch_shape: tuple[int]) -> StatesTensor:
@@ -437,14 +429,10 @@ class TimeDependentStates(Container, ABC):
         if self.forward_masks is None and self.backward_masks is None:
             return self.__class__(states)
         else:
-            self.forward_masks, self.backward_masks = correct_cast(
-                self.forward_masks, self.backward_masks
-            )
+            self.forward_masks, self.backward_masks = correct_cast(self.forward_masks, self.backward_masks)
             forward_masks = self.forward_masks[index]
             backward_masks = self.backward_masks[index]
-            return self.__class__(
-                states, forward_masks=forward_masks, backward_masks=backward_masks
-            )
+            return self.__class__(states, forward_masks=forward_masks, backward_masks=backward_masks)
 
     def flatten(self) -> States:
         """Flatten the batch dimension of the states.
@@ -454,14 +442,10 @@ class TimeDependentStates(Container, ABC):
         if self.forward_masks is None and self.backward_masks is None:
             return self.__class__(states)
         else:
-            self.forward_masks, self.backward_masks = correct_cast(
-                self.forward_masks, self.backward_masks
-            )
+            self.forward_masks, self.backward_masks = correct_cast(self.forward_masks, self.backward_masks)
             forward_masks = self.forward_masks.view(-1, self.forward_masks.shape[-1])
             backward_masks = self.backward_masks.view(-1, self.backward_masks.shape[-1])
-            return self.__class__(
-                states, forward_masks=forward_masks, backward_masks=backward_masks
-            )
+            return self.__class__(states, forward_masks=forward_masks, backward_masks=backward_masks)
 
     def extend(self, other: States) -> None:
         """Collates to another States object of the same batch shape, which should be 1 or 2.
@@ -476,43 +460,21 @@ class TimeDependentStates(Container, ABC):
         if len(other_batch_shape) == len(self.batch_shape) == 1:
             # This corresponds to adding a state to a trajectory
             self.batch_shape = (self.batch_shape[0] + other_batch_shape[0],)
-            self.states_tensor = torch.cat(
-                (self.states_tensor, other.states_tensor), dim=0
-            )
+            self.states_tensor = torch.cat((self.states_tensor, other.states_tensor), dim=0)
 
         elif len(other_batch_shape) == len(self.batch_shape) == 2:
             # This corresponds to adding a trajectory to a batch of trajectories
-            self.extend_with_sf(
-                required_first_dim=max(self.batch_shape[0], other_batch_shape[0])
-            )
-            other.extend_with_sf(
-                required_first_dim=max(self.batch_shape[0], other_batch_shape[0])
-            )
-            self.batch_shape = (
-                self.batch_shape[0],
-                self.batch_shape[1] + other_batch_shape[1],
-            )
-            self.states_tensor = torch.cat(
-                (self.states_tensor, other.states_tensor), dim=1
-            )
+            self.extend_with_sf( required_first_dim=max(self.batch_shape[0], other_batch_shape[0]))
+            other.extend_with_sf(required_first_dim=max(self.batch_shape[0], other_batch_shape[0]))
+            self.batch_shape = (self.batch_shape[0], self.batch_shape[1] + other_batch_shape[1],)
+            self.states_tensor = torch.cat((self.states_tensor, other.states_tensor), dim=1)
         else:
-            raise ValueError(
-                f"extend is not implemented for batch shapes {self.batch_shape} and {other_batch_shape}"
-            )
+            raise ValueError(f"extend is not implemented for batch shapes {self.batch_shape} and {other_batch_shape}")
         if self.forward_masks is not None and self.backward_masks is not None:
-            self.forward_masks, self.backward_masks = correct_cast(
-                self.forward_masks, self.backward_masks
-            )
-            other.forward_masks, other.backward_masks = correct_cast(
-                other.forward_masks, other.backward_masks
-            )
-            self.forward_masks = torch.cat(
-                (self.forward_masks, other.forward_masks), dim=len(self.batch_shape) - 1
-            )
-            self.backward_masks = torch.cat(
-                (self.backward_masks, other.backward_masks),
-                dim=len(self.batch_shape) - 1,
-            )
+            self.forward_masks, self.backward_masks = correct_cast(self.forward_masks, self.backward_masks)
+            other.forward_masks, other.backward_masks = correct_cast(other.forward_masks, other.backward_masks)
+            self.forward_masks = torch.cat( (self.forward_masks, other.forward_masks), dim=len(self.batch_shape) - 1)
+            self.backward_masks = torch.cat((self.backward_masks, other.backward_masks), dim=len(self.batch_shape) - 1,)
 
     def extend_with_sf(self, required_first_dim: int) -> None:
         """Takes a two-dimensional batch of states (i.e. of batch_shape (a, b)),

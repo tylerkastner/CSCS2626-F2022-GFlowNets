@@ -127,6 +127,7 @@ class DebugNet(nn.Module):
         super().__init__()
 
         self.n_total = int(torch.prod(torch.tensor(in_chs)))
+        self.n_pixel = int(torch.prod(torch.tensor(in_chs[1:])))
         self.num_class = num_class
         self.in_chs = in_chs
         n_hidden = 16
@@ -143,7 +144,7 @@ class DebugNet(nn.Module):
 
         self.prereadout = nn.Linear(n_hidden, n_hidden).to('cuda')
         self.activation = nn.ReLU()
-        self.readout = nn.Linear(n_hidden, self.num_class*self.n_total).to('cuda')
+        self.readout = nn.Linear(n_hidden, self.num_class*self.n_pixel).to('cuda')
     def forward(self, x):
 
         for layer in self.torso:

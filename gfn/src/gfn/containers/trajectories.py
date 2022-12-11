@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Sequence
 
 if TYPE_CHECKING:
     from gfn.src.gfn.envs import Env
-    from gfn.src.gfn.containers.states import States
+    from gfn.src.gfn.containers.states import States, TimeDependentStates
 
 import torch
 from torchtyping import TensorType
@@ -24,7 +24,7 @@ class Trajectories(Container):
     def __init__(
         self,
         env: Env,
-        states: States | None = None,
+        states: TimeDependentStates | None = None,
         actions: Tensor2D | None = None,
         when_is_done: Tensor1D | None = None,
         is_backward: bool = False,
@@ -111,7 +111,7 @@ class Trajectories(Container):
         return self.actions.shape[0]
 
     @property
-    def last_states(self) -> States:
+    def last_states(self) -> TimeDependentStates:
         return self.states[self.when_is_done - 1, torch.arange(self.n_trajectories)]
 
     @property
@@ -265,14 +265,14 @@ class Trajectories(Container):
             log_probs=log_probs,
         )
 
-    def to_states(self) -> States:
+    def to_states(self) -> TimeDependentStates:
         """Returns a `States` object from the trajectories, containing all states in the trajectories"""
         states = self.states.flatten()
         return states[~states.is_sink_state]
 
     def to_non_initial_intermediary_and_terminating_states(
         self,
-    ) -> tuple[States, States]:
+    ) -> tuple[TimeDependentStates, TimeDependentStates]:
         """Returns a tuple of `States` objects from the trajectories, containing all non-initial intermediary and all terminating states in the trajectories
 
         Returns:

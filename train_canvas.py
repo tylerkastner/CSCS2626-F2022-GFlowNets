@@ -15,14 +15,14 @@ from backbones.mnist_simple_unet import RewardNet
 
 def train_grid_gfn(config, gfn_parametrization=None, trajectories_sampler=None, reward_net=None, gt_trajectories=None, n_train_steps=20000, verbose=0):
 
-    env = Canvas(n_denoising_steps=config.env.n_denoising_steps, canvas_size=config.env.size, reward_net=reward_net.to('cuda'), discrete_block_size=1)
+    env = Canvas(n_denoising_steps=config.env.n_denoising_steps, canvas_size=config.env.size, reward_net=reward_net.to('cuda'), discrete_block_size=1, n_time_features=config.env.n_time_featuers)
 
     if gfn_parametrization is None:
         # nn_kwargs = {'enc_chs': (1, 64, 64), 'dec_chs': (64, 64), 'num_class': 2}
         # logit_PF = LogitPFEstimator(env=env, module_name='UNet', nn_kwargs=nn_kwargs)
         # logit_PB = LogitPBEstimator(env=env, module_name='UNet', subtract_exit_actions=False, nn_kwargs=nn_kwargs)
 
-        logit_PF = LogitPFEstimator(env=env, module_name='Debug', in_chs=(1, config.env.size, config.env.size), num_class=2)
+        logit_PF = LogitPFEstimator(env=env, module_name='Debug', in_chs=(1 + config.env.n_time_featuers, config.env.size, config.env.size), num_class=2)
         logit_PB = LogitPBEstimator(env=env, module_name='Debug', subtract_exit_actions=False, in_chs=(1, config.env.size, config.env.size), num_class=2, torso=logit_PF.module.torso)
         logZ = LogZEstimator(torch.tensor(0.))
 
