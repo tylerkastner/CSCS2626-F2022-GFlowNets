@@ -15,6 +15,7 @@ def render_distribution(distribution, box_height, ndim, file_name, iso=[0.01, 0.
     Path('./results/').mkdir(parents=True, exist_ok=True)
     # improve here to create folder for each case
     if ndim == 2:
+        distribution = distribution.reshape((box_height, box_height))
         plt.matshow(distribution.T)
         plt.title(file_name)
         plt.savefig('./results/2d_h16/{}.png'.format(file_name)) 

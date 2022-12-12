@@ -1,7 +1,7 @@
 env:
   name: Grid
   ndim: 2
-  height: 16
+  height: 8
   nactions: 3
 
 experiment:
@@ -20,3 +20,14 @@ experiment:
   n_gt_trajs: 10000
   states_filename: 'sample_trajs_states.pkl'
   actions_filename: 'sample_trajs_actions.pkl'
+
+
+baseline:
+  n_epochs_reward_fn: 10
+  batch_size_reward_fn: 512
+  num_rollouts_per_epoch: 5
+
+
+analysis:
+  ndim: 2
+  height: 8

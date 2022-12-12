@@ -72,7 +72,7 @@ def generate_trajs(
     n=10000,
     states_filename='sample_trajs_states.pkl',
     actions_filename='sample_trajs_actions.pkl',
-    boltzmann=True
+    boltzmann=False
 ) -> None:
     all_states = env.build_grid()
     all_rewards = env.reward(all_states)

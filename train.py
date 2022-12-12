@@ -4,6 +4,7 @@ import yaml
 import munch
 import tqdm
 import random
+import os
 
 import time
 
@@ -39,14 +40,12 @@ def train(config, env):
                    )
     trajectories = load_pickled_trajectories(env,
                                              states_filename=states_filename,
-                                             actions_filename=actions_filename
-                                             )
+                                             actions_filename=actions_filename)
                                              
   else:
     trajectories = load_pickled_trajectories(env=env,
                                              states_filename=states_filename,
-                                             actions_filename=actions_filename
-                                             )
+                                             actions_filename=actions_filename)
 
   last_states = torch.cat([traj.states.states_tensor[-2] for traj in trajectories])
   last_states_one_hot = torch.nn.functional.one_hot(last_states, num_classes=config.env.height)
@@ -85,6 +84,7 @@ def train(config, env):
   print('\nStart training reward net')
   pbar = tqdm.trange(config.experiment.n_epochs_reward_fn)
   for epoch in pbar:
+    print(f'Epoch {epoch}')
     reward_losses_per_batch = []
     for items in tqdm.tqdm(iterate_trajs(trajectories, batch_size=config.experiment.batch_size_reward_fn), total=len(trajectories)/config.experiment.batch_size_reward_fn, position=0, leave=True):
       i_batch, batch = items
@@ -124,7 +124,9 @@ def train(config, env):
     pbar.set_description('{}'.format(average_loss_per_epoch))
     reward_losses_per_epoch.append(average_loss_per_epoch)
 
-    if config.experiment.use_gfn_z and (epoch+1) % config.experiment.full_gfn_retrain == 0:
+    render_distribution(-reward_net(all_states.states_tensor.reshape(-1, config.env.ndim)).detach(), env.height, env.ndim, 'true_reward_2d_{}'.format(env.height))
+
+    if config.experiment.use_gfn_z and epoch % config.experiment.full_gfn_retrain == 0:
       print('Fully retrain gfn...')
       reward_net_checkpoint = copy.deepcopy(reward_net)
       gfn_parametrization, trajectories_sampler_gfn, gfn_reward = train_grid_gfn(config, None, None, reward_net=reward_net, n_train_steps=1000,
@@ -138,29 +140,24 @@ def train(config, env):
       gt_z_per_epoch.append(torch.log(Z).detach().numpy().item())
       print('GT Z is {} and gfn Z is {}'.format(torch.log(Z), gfn_parametrization.logZ.tensor))
 
-  plt.plot(KL_div_per_epoch, label='KL-divergence')
-  plt.legend()
-  plt.savefig("KL_div_per_epoch.png")
-  plt.show()
-  plt.close()
 
-  plt.plot(reward_losses_per_epoch, label='reward_loss')
-  plt.legend()
-  plt.savefig("reward_losses_per_epoch.png")
-  plt.show()
-  plt.close()
+  path = f'results/hypergrid_estimates/{config.env.ndim}/{config.env.height}'
+  os.makedirs(path, exist_ok = True)
 
-  fig, ax = plt.subplots()
-  l1, =ax.plot(gfn_z_per_epoch, label='GFN log(Z)')
-  l2, =ax.plot(gt_z_per_epoch, label='GT log(Z)')
-  ax.set_xlabel("epoch")
-  ax2=ax.twinx()
-  l3, =ax2.plot(np.array(gfn_z_per_epoch)-np.array(gt_z_per_epoch),label='difference',color="green")
-  plt.legend(handles=[l1,l2,l3])
-  plt.show()
-  fig.savefig("gt_gfn_z.png")
-  plt.close()
+  predicted_reward = reward_net(all_states.states_tensor.reshape(-1, config.env.ndim)).detach()
+  true_reward = env.reward(all_states)
 
+  torch.save(predicted_reward, os.path.join(path, 'predicted_reward.pt'))
+  torch.save(true_reward, os.path.join(path, 'true_reward.pt'))
+
+
+  # plt.plot(reward_losses_per_epoch)
+  # plt.show()
+
+  # plt.plot(gfn_z_per_epoch, label='GFN log(Z)')
+  # plt.plot(gt_z_per_epoch, label='GT log(Z)')
+  # plt.legend()
+  # plt.show()
 
 if __name__ == '__main__':
   with open("config.yml", "r") as ymlfile:
@@ -168,17 +165,7 @@ if __name__ == '__main__':
   config = munch.munchify(config)
   config.env.nactions = config.env.ndim + 1
 
-  if config.env.ndim <= 3:
-    env = HyperGrid(ndim=config.env.ndim,
-                    height=config.env.height,
-                    R0=0.01)
-    train(config, env)
-
-  elif config.env.ndim > 3:
-    env = HyperGrid(ndim=1,
-                    height=config.env.height,
-                    R0=0.01)
-    train(config, env)
-
-  else:
-    exit("Wrong Dimension.")
+  env = HyperGrid(ndim=config.env.ndim,
+                  height=config.env.height,
+                  R0=0.01)
+  train(config, env)
